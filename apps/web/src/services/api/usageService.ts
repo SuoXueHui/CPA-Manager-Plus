@@ -1415,6 +1415,10 @@ export interface MonitoringAnalyticsResponse {
 
 const USAGE_SERVICE_TIMEOUT_MS = 30 * 1000;
 const USAGE_SERVICE_TRANSFER_TIMEOUT_MS = 60 * 1000;
+// Heavy monitoring reports can scan large local SQLite windows. Keep the
+// generic control-plane timeout short, but allow report reads to finish instead
+// of cancelling them at the previous 30s boundary.
+const USAGE_SERVICE_REPORT_TIMEOUT_MS = 90 * 1000;
 const USAGE_IMPORT_CHUNK_TIMEOUT_MS = 5 * 60 * 1000;
 const CODEX_INSPECTION_RUN_TIMEOUT_MS = 10 * 60 * 1000;
 export const USAGE_SERVICE_ID = 'cpa-manager-plus';
@@ -1511,6 +1515,77 @@ const withUsageServiceError = async <T>(operation: () => Promise<T>): Promise<T>
     return await operation();
   } catch (error) {
     throw toUsageServiceApiError(error);
+  }
+};
+
+// Keep the heavy monitoring reads for one Manager base serialized so parallel
+// page loads do not compete for the same SQLite connections and exceed the
+// client timeout.
+const monitoringRequestChains = new Map<string, Promise<void>>();
+
+const createMonitoringAbortError = (): Error => {
+  if (typeof DOMException !== 'undefined') {
+    return new DOMException('The operation was aborted.', 'AbortError');
+  }
+  const error = new Error('The operation was aborted.');
+  error.name = 'AbortError';
+  return error;
+};
+
+const waitForMonitoringRequestTurn = async (
+  previous: Promise<void>,
+  signal?: AbortSignal
+): Promise<void> => {
+  if (!signal) {
+    await previous;
+    return;
+  }
+  if (signal.aborted) {
+    throw createMonitoringAbortError();
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const onAbort = () => {
+      signal.removeEventListener('abort', onAbort);
+      reject(createMonitoringAbortError());
+    };
+
+    signal.addEventListener('abort', onAbort, { once: true });
+    previous.then(
+      () => {
+        signal.removeEventListener('abort', onAbort);
+        resolve();
+      },
+      (error) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      }
+    );
+  });
+};
+
+const runSerializedMonitoringRequest = async <T>(
+  base: string,
+  managementKey: string | undefined,
+  signal: AbortSignal | undefined,
+  operation: () => Promise<T>
+): Promise<T> => {
+  const queueKey = `${normalizeApiBase(base)}::${managementKey ?? ''}`;
+  const previous = monitoringRequestChains.get(queueKey) ?? Promise.resolve();
+  let releaseCurrent!: () => void;
+  const current = new Promise<void>((resolve) => {
+    releaseCurrent = resolve;
+  });
+  monitoringRequestChains.set(queueKey, previous.then(() => current, () => current));
+
+  try {
+    await waitForMonitoringRequestTurn(previous, signal);
+    if (signal?.aborted) {
+      throw createMonitoringAbortError();
+    }
+    return await operation();
+  } finally {
+    releaseCurrent();
   }
 };
 
@@ -2888,7 +2963,7 @@ export const dashboardApi = {
       const response = await axios.get<DashboardSummaryResponse>(
         buildUrl(base, '/v0/management/dashboard/summary'),
         {
-          timeout: USAGE_SERVICE_TIMEOUT_MS,
+          timeout: USAGE_SERVICE_REPORT_TIMEOUT_MS,
           headers: authHeaders(managementKey),
           params: query,
         }
@@ -2908,17 +2983,19 @@ export const monitoringAnalyticsApi = {
       return getDemoHeaderSnapshots();
     }
 
-    return withUsageServiceError(async () => {
-      const response = await axios.get<UsageHeaderSnapshotsResponse>(
-        buildUrl(base, '/v0/management/monitoring/header-snapshots'),
-        {
-          timeout: USAGE_SERVICE_TIMEOUT_MS,
-          headers: authHeaders(managementKey),
-          params,
-        }
-      );
-      return response.data;
-    });
+    return withUsageServiceError(async () =>
+      runSerializedMonitoringRequest(base, managementKey, undefined, async () => {
+        const response = await axios.get<UsageHeaderSnapshotsResponse>(
+          buildUrl(base, '/v0/management/monitoring/header-snapshots'),
+          {
+            timeout: USAGE_SERVICE_TIMEOUT_MS,
+            headers: authHeaders(managementKey),
+            params,
+          }
+        );
+        return response.data;
+      })
+    );
   },
   getAnalytics: async (
     base: string,
@@ -2930,17 +3007,19 @@ export const monitoringAnalyticsApi = {
       return getDemoMonitoringAnalytics(request);
     }
 
-    return withUsageServiceError(async () => {
-      const response = await axios.post<MonitoringAnalyticsResponse>(
-        buildUrl(base, '/v0/management/monitoring/analytics'),
-        request,
-        {
-          timeout: USAGE_SERVICE_TIMEOUT_MS,
-          headers: authHeaders(managementKey),
-          signal,
-        }
-      );
-      return response.data;
-    });
+    return withUsageServiceError(async () =>
+      runSerializedMonitoringRequest(base, managementKey, signal, async () => {
+        const response = await axios.post<MonitoringAnalyticsResponse>(
+          buildUrl(base, '/v0/management/monitoring/analytics'),
+          request,
+          {
+            timeout: USAGE_SERVICE_REPORT_TIMEOUT_MS,
+            headers: authHeaders(managementKey),
+            signal,
+          }
+        );
+        return response.data;
+      })
+    );
   },
 };

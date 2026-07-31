@@ -554,6 +554,9 @@ func Migrate(db *sql.DB) error {
 	if err := ensureUsageEventSnapshotColumns(db); err != nil {
 		return err
 	}
+	if err := ensureMonitoringIndexes(db); err != nil {
+		return err
+	}
 	if err := ensureCodexInspectionRunColumns(db); err != nil {
 		return err
 	}
@@ -579,6 +582,51 @@ func Migrate(db *sql.DB) error {
 		return err
 	}
 	return ensureModelPriceColumns(db)
+}
+
+func ensureMonitoringIndexes(db *sql.DB) error {
+	// These indexes are created after the legacy snapshot-column migration so
+	// an older database can upgrade safely in one restart.
+	for _, statement := range []string{
+		`create index if not exists idx_usage_events_provider_timestamp_id
+			on usage_events(lower(coalesce(provider, '')), timestamp_ms, id)`,
+		`create index if not exists idx_usage_events_auth_provider_timestamp_id
+			on usage_events(lower(coalesce(auth_provider_snapshot, '')), timestamp_ms, id)`,
+		`create index if not exists idx_usage_events_header_snapshot_timestamp_id
+			on usage_events(timestamp_ms desc, id desc)
+			where (coalesce(response_metadata_json, '') <> ''
+				or header_quota_recover_at_ms is not null
+				or header_quota_used_percent is not null
+				or coalesce(header_quota_plan_type, '') <> ''
+				or coalesce(header_error_kind, '') <> ''
+				or coalesce(header_error_code, '') <> ''
+				or coalesce(header_trace_id, '') <> '')
+				and (coalesce(auth_file_snapshot, '') <> ''
+				or coalesce(auth_index, '') <> ''
+				or coalesce(account_snapshot, '') <> ''
+				or coalesce(source_hash, '') <> '')`,
+		// The candidate scan only needs these identity columns. Keeping them in
+		// the partial index avoids a table lookup for every historical event.
+		`create index if not exists idx_usage_events_header_snapshot_covering
+			on usage_events(timestamp_ms desc, id desc, auth_file_snapshot,
+				auth_index, account_snapshot, source_hash, event_hash)
+			where (coalesce(response_metadata_json, '') <> ''
+				or header_quota_recover_at_ms is not null
+				or header_quota_used_percent is not null
+				or coalesce(header_quota_plan_type, '') <> ''
+				or coalesce(header_error_kind, '') <> ''
+				or coalesce(header_error_code, '') <> ''
+				or coalesce(header_trace_id, '') <> '')
+				and (coalesce(auth_file_snapshot, '') <> ''
+				or coalesce(auth_index, '') <> ''
+				or coalesce(account_snapshot, '') <> ''
+				or coalesce(source_hash, '') <> '')`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func ensureDashboardHourlyRollupFormatVersion(db *sql.DB) error {

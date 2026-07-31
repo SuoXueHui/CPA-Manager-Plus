@@ -1474,7 +1474,12 @@ order by sum(case when failed = 1 then 1 else 0 end) desc, max(timestamp_ms) des
 
 func (r *repository) AccountModelStatsWithFilter(ctx context.Context, filter AnalyticsFilter) ([]AccountModelStat, error) {
 	where, args := analyticsWhere(filter)
-	rows, err := r.db.QueryContext(ctx, pricingBandedUsageEventsCTE+`
+	// Push the time window into the first CTE before pricing joins. The outer
+	// predicate remains intentionally duplicated so every existing filter keeps
+	// its original semantics, while SQLite can avoid materializing old events.
+	baseArgs := []any{filter.FromMS, filter.ToMS}
+	baseArgs = append(baseArgs, args...)
+	rows, err := r.db.QueryContext(ctx, pricingBandedUsageEventsCTEWithBaseFilter("timestamp_ms >= ? and timestamp_ms < ?")+`
 select
 	coalesce(account_snapshot, ''),
 	coalesce(auth_label_snapshot, ''),
@@ -1506,7 +1511,7 @@ select
 	count(nullif(latency_ms, 0))
 from banded_usage_events `+where+`
 group by account_snapshot, auth_label_snapshot, coalesce(nullif(auth_provider_snapshot, ''), provider, ''), auth_index, source_hash, model, billing_model, pricing_model_value, context_threshold_tokens_value, coalesce(service_tier, '')
-order by max(timestamp_ms) desc, count(*) desc`, args...)
+order by max(timestamp_ms) desc, count(*) desc`, baseArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -2433,113 +2438,141 @@ func (r *repository) LatestHeaderSnapshots(ctx context.Context, sinceMS int64, l
 	if limit <= 0 {
 		return nil, nil
 	}
-	rows, err := r.db.QueryContext(ctx, `with candidates as (
-	select
-		id,
-		event_hash,
-		timestamp_ms,
-		coalesce(auth_file_snapshot, '') as auth_file_snapshot,
-		coalesce(auth_index, '') as auth_index,
-		coalesce(account_snapshot, '') as account_snapshot,
-		coalesce(auth_label_snapshot, '') as auth_label_snapshot,
-		coalesce(nullif(auth_provider_snapshot, ''), provider, '') as auth_provider_snapshot,
-		coalesce(auth_project_id_snapshot, '') as auth_project_id_snapshot,
-		coalesce(source, '') as source,
-		coalesce(source_hash, '') as source_hash,
-		coalesce(response_metadata_json, '') as response_metadata_json,
-		header_quota_recover_at_ms,
-		header_quota_used_percent,
-		coalesce(header_quota_plan_type, '') as header_quota_plan_type,
-		coalesce(header_error_kind, '') as header_error_kind,
-		coalesce(header_error_code, '') as header_error_code,
-		coalesce(header_trace_id, '') as header_trace_id,
-		case
-			when coalesce(auth_file_snapshot, '') <> '' and coalesce(auth_index, '') <> '' then coalesce(auth_file_snapshot, '') || '::' || coalesce(auth_index, '')
-			when coalesce(auth_file_snapshot, '') <> '' then 'file::' || coalesce(auth_file_snapshot, '')
-			when coalesce(auth_index, '') <> '' then 'auth::' || coalesce(auth_index, '')
-			when coalesce(account_snapshot, '') <> '' then 'account::' || lower(coalesce(account_snapshot, ''))
-			when coalesce(source_hash, '') <> '' then 'source::' || coalesce(source_hash, '')
-			else 'event::' || event_hash
-		end as snapshot_key
-	from usage_events
+	// The old window-function query had to sort every matching event before it
+	// could return the newest snapshot for each account. On a production DB with
+	// millions of events that made the monitoring page exceed its 30s client
+	// timeout. Walk the partial timestamp index newest-first instead: the first
+	// row seen for a snapshot key is already its latest row.
+	type candidate struct {
+		id          int64
+		eventHash   string
+		timestampMS int64
+		authFile    string
+		authIndex   string
+		account     string
+		sourceHash  string
+	}
+	candidates := make([]candidate, 0, limit)
+	seen := make(map[string]struct{}, limit)
+	rows, err := r.db.QueryContext(ctx, `select id, event_hash, timestamp_ms,
+		coalesce(auth_file_snapshot, ''), coalesce(auth_index, ''),
+		coalesce(account_snapshot, ''), coalesce(source_hash, '')
+	from usage_events indexed by idx_usage_events_header_snapshot_covering
 	where timestamp_ms >= ?
-	and (
-		coalesce(response_metadata_json, '') <> ''
+	and (coalesce(response_metadata_json, '') <> ''
 		or header_quota_recover_at_ms is not null
 		or header_quota_used_percent is not null
 		or coalesce(header_quota_plan_type, '') <> ''
 		or coalesce(header_error_kind, '') <> ''
 		or coalesce(header_error_code, '') <> ''
-		or coalesce(header_trace_id, '') <> ''
-	)
-	and (
-		coalesce(auth_file_snapshot, '') <> ''
+		or coalesce(header_trace_id, '') <> '')
+	and (coalesce(auth_file_snapshot, '') <> ''
 		or coalesce(auth_index, '') <> ''
 		or coalesce(account_snapshot, '') <> ''
-		or coalesce(source_hash, '') <> ''
-	)
-), ranked as (
-	select *, row_number() over (partition by snapshot_key order by timestamp_ms desc, id desc) as rn
-	from candidates
-)
-select
-	id,
-	event_hash,
-	timestamp_ms,
-	auth_file_snapshot,
-	auth_index,
-	account_snapshot,
-	auth_label_snapshot,
-	auth_provider_snapshot,
-	auth_project_id_snapshot,
-	source,
-	source_hash,
-	response_metadata_json,
-	header_quota_recover_at_ms,
-	header_quota_used_percent,
-	header_quota_plan_type,
-	header_error_kind,
-	header_error_code,
-	header_trace_id
-from ranked
-where rn = 1
-order by timestamp_ms desc, id desc
-limit ?`, sinceMS, limit)
+		or coalesce(source_hash, '') <> '')
+	order by timestamp_ms desc, id desc`, sinceMS)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	items := make([]HeaderSnapshot, 0, limit)
 	for rows.Next() {
-		var item HeaderSnapshot
-		var responseMetadataJSON string
-		if err := rows.Scan(
-			&item.ID,
-			&item.EventHash,
-			&item.TimestampMS,
-			&item.AuthFileSnapshot,
-			&item.AuthIndex,
-			&item.AccountSnapshot,
-			&item.AuthLabelSnapshot,
-			&item.AuthProviderSnapshot,
-			&item.AuthProjectIDSnapshot,
-			&item.Source,
-			&item.SourceHash,
-			&responseMetadataJSON,
-			&item.HeaderQuotaRecoverAtMS,
-			&item.HeaderQuotaUsedPercent,
-			&item.HeaderQuotaPlanType,
-			&item.HeaderErrorKind,
-			&item.HeaderErrorCode,
-			&item.HeaderTraceID,
-		); err != nil {
+		var item candidate
+		if err := rows.Scan(&item.id, &item.eventHash, &item.timestampMS, &item.authFile, &item.authIndex, &item.account, &item.sourceHash); err != nil {
+			_ = rows.Close()
 			return nil, err
 		}
-		item.ResponseMetadata = usage.ResponseHeaderMetadataFromJSON(responseMetadataJSON)
-		items = append(items, item)
+		key := headerSnapshotKey(item.authFile, item.authIndex, item.account, item.sourceHash, item.eventHash)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		candidates = append(candidates, item)
+		if len(candidates) >= limit {
+			break
+		}
 	}
-	return items, rows.Err()
+	rowsErr := rows.Err()
+	_ = rows.Close()
+	if rowsErr != nil {
+		return nil, rowsErr
+	}
+	if len(candidates) == 0 {
+		return []HeaderSnapshot{}, nil
+	}
+
+	// Fetch the relatively large JSON/header columns only for the selected
+	// latest rows; this avoids materializing a million response payloads.
+	itemsByID := make(map[int64]HeaderSnapshot, len(candidates))
+	for start := 0; start < len(candidates); start += 500 {
+		end := start + 500
+		if end > len(candidates) {
+			end = len(candidates)
+		}
+		placeholders := make([]string, end-start)
+		args := make([]any, end-start)
+		for i := start; i < end; i++ {
+			placeholders[i-start] = "?"
+			args[i-start] = candidates[i].id
+		}
+		rows, err := r.db.QueryContext(ctx, `select id, event_hash, timestamp_ms,
+			coalesce(auth_file_snapshot, ''), coalesce(auth_index, ''),
+			coalesce(account_snapshot, ''), coalesce(auth_label_snapshot, ''),
+			coalesce(nullif(auth_provider_snapshot, ''), provider, ''),
+			coalesce(auth_project_id_snapshot, ''), coalesce(source, ''),
+			coalesce(source_hash, ''), coalesce(response_metadata_json, ''),
+			header_quota_recover_at_ms, header_quota_used_percent,
+			coalesce(header_quota_plan_type, ''), coalesce(header_error_kind, ''),
+			coalesce(header_error_code, ''), coalesce(header_trace_id, '')
+		from usage_events where id in (`+strings.Join(placeholders, ",")+")", args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var item HeaderSnapshot
+			var responseMetadataJSON string
+			if err := rows.Scan(&item.ID, &item.EventHash, &item.TimestampMS,
+				&item.AuthFileSnapshot, &item.AuthIndex, &item.AccountSnapshot,
+				&item.AuthLabelSnapshot, &item.AuthProviderSnapshot,
+				&item.AuthProjectIDSnapshot, &item.Source, &item.SourceHash,
+				&responseMetadataJSON, &item.HeaderQuotaRecoverAtMS,
+				&item.HeaderQuotaUsedPercent, &item.HeaderQuotaPlanType,
+				&item.HeaderErrorKind, &item.HeaderErrorCode, &item.HeaderTraceID); err != nil {
+				_ = rows.Close()
+				return nil, err
+			}
+			item.ResponseMetadata = usage.ResponseHeaderMetadataFromJSON(responseMetadataJSON)
+			itemsByID[item.ID] = item
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		_ = rows.Close()
+	}
+
+	items := make([]HeaderSnapshot, 0, len(candidates))
+	for _, candidate := range candidates {
+		if item, ok := itemsByID[candidate.id]; ok {
+			items = append(items, item)
+		}
+	}
+	return items, nil
+}
+
+func headerSnapshotKey(authFile, authIndex, account, sourceHash, eventHash string) string {
+	switch {
+	case authFile != "" && authIndex != "":
+		return authFile + "::" + authIndex
+	case authFile != "":
+		return "file::" + authFile
+	case authIndex != "":
+		return "auth::" + authIndex
+	case account != "":
+		return "account::" + strings.ToLower(account)
+	case sourceHash != "":
+		return "source::" + sourceHash
+	default:
+		return "event::" + eventHash
+	}
 }
 
 func (r *repository) ActiveDaysWithFilter(ctx context.Context, filter AnalyticsFilter, location *time.Location) (int64, error) {
@@ -2670,6 +2703,23 @@ func analyticsWhere(filter AnalyticsFilter) (string, []any) {
 func addProviderCondition(values []string, conditions *[]string, args *[]any) {
 	normalized := normalizeLowerFilterValues(values)
 	if len(normalized) == 0 {
+		return
+	}
+	// Small provider selections are expanded to scalar parameters so SQLite
+	// can use the normalized provider expression indexes. Keep JSON1 for very
+	// large selections to avoid exceeding SQLite's bind-variable limit.
+	if len(normalized) <= 100 {
+		placeholders := strings.TrimRight(strings.Repeat("?,", len(normalized)), ",")
+		providerConditions := []string{
+			"lower(coalesce(provider, '')) in (" + placeholders + ")",
+			"lower(coalesce(auth_provider_snapshot, '')) in (" + placeholders + ")",
+		}
+		*conditions = append(*conditions, "("+strings.Join(providerConditions, " or ")+")")
+		for _, conditionValues := range []([]string){normalized, normalized} {
+			for _, value := range conditionValues {
+				*args = append(*args, value)
+			}
+		}
 		return
 	}
 	encoded := encodeJSONFilterValues(normalized)

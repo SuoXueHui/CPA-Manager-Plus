@@ -58,6 +58,28 @@ func TestUsageDataMigrationInitialStateMatchesExistingUsageData(t *testing.T) {
 	}
 }
 
+func TestMigrateCreatesMonitoringLookupIndexes(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "monitoring-indexes.sqlite"))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	for _, name := range []string{
+		"idx_usage_events_provider_timestamp_id",
+		"idx_usage_events_auth_provider_timestamp_id",
+		"idx_usage_events_header_snapshot_timestamp_id",
+		"idx_usage_events_header_snapshot_covering",
+	} {
+		var count int
+		if err := db.QueryRow(`select count(*) from sqlite_master where type = 'index' and name = ?`, name).Scan(&count); err != nil {
+			t.Fatalf("query index %s: %v", name, err)
+		}
+		if count != 1 {
+			t.Fatalf("index %s count = %d, want 1", name, count)
+		}
+	}
+}
+
 func TestUsageDataMigrationUpgradeAddsChangedRowsAndPreservesV1(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "usage-data-migration-upgrade.sqlite")
 	db, err := Open(path)

@@ -93,6 +93,9 @@ func TestServerCompatHealthInfoAndPanel(t *testing.T) {
 
 	panelRR := testutil.Request(t, handler, http.MethodGet, "/management.html", "", "")
 	testutil.RequireStatus(t, panelRR, http.StatusOK)
+	if got := panelRR.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("panel cache control = %q, want no-store", got)
+	}
 	if !strings.Contains(panelRR.Header().Get("Content-Type"), "text/html") {
 		t.Fatalf("panel content type = %q", panelRR.Header().Get("Content-Type"))
 	}

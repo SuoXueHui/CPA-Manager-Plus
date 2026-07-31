@@ -457,6 +457,10 @@ export function MonitoringCenterPage() {
     isCurrentLayer &&
       documentVisible &&
       connectionStatus === 'connected' &&
+      // Account-level aggregation can take tens of seconds on a large SQLite history.
+      // Starting another refresh while it is still running changes now_ms and aborts the
+      // in-flight request, so the timer must wait for the current report to settle.
+      !monitoringLoading &&
       Number(autoRefreshMs) > 0
       ? Number(autoRefreshMs)
       : null

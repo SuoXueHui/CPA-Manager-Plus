@@ -19,6 +19,10 @@ func New(panelPath string, embedded fs.FS) *Service {
 }
 
 func (s *Service) ServeManagementHTML(w http.ResponseWriter, r *http.Request, writeError func(http.ResponseWriter, int, error)) {
+	// The panel embeds the JavaScript bundle in management.html. Preventing cache reuse
+	// ensures a restarted Manager serves the current bundle instead of an older timeout.
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 	if s.PanelPath != "" {
 		if file, err := os.Open(s.PanelPath); err == nil {
 			defer file.Close()
