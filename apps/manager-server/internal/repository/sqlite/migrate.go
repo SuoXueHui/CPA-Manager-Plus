@@ -102,6 +102,21 @@ func Migrate(db *sql.DB) error {
 		`create index if not exists idx_usage_events_model on usage_events(model)`,
 		`create index if not exists idx_usage_events_auth_index on usage_events(auth_index)`,
 		`create index if not exists idx_usage_events_endpoint on usage_events(endpoint)`,
+		`create table if not exists auth_file_activity (
+			scope_key text not null,
+			identity_key text not null,
+			auth_file_name text not null default '',
+			auth_index text not null default '',
+			imported_at_ms integer not null default 0,
+			last_request_at_ms integer not null default 0,
+			created_at_ms integer not null,
+			updated_at_ms integer not null,
+			primary key (scope_key, identity_key)
+		)`,
+		`create index if not exists idx_auth_file_activity_scope_file
+			on auth_file_activity(scope_key, auth_file_name)`,
+		`create index if not exists idx_auth_file_activity_scope_auth_index
+			on auth_file_activity(scope_key, auth_index)`,
 		`create table if not exists usage_rollup_checkpoints (
 			name text primary key,
 			last_event_id integer not null default 0,

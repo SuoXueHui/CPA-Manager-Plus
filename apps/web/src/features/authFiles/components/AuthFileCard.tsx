@@ -400,6 +400,20 @@ export function AuthFileCard(props: AuthFileCardProps) {
               <span className={styles.metaLabel}>{t('auth_files.file_modified')}</span>
               <span className={styles.metaValue}>{formatModified(file)}</span>
             </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>{t('auth_files.file_imported')}</span>
+              <span className={styles.metaValue}>
+                {file.importedAtMs ? formatUnixTimestamp(file.importedAtMs) : '-'}
+              </span>
+            </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>{t('auth_files.last_request')}</span>
+              <span className={styles.metaValue}>
+                {file.lastRequestAtMs
+                  ? formatUnixTimestamp(file.lastRequestAtMs)
+                  : t('auth_files.never_requested')}
+              </span>
+            </div>
             {priorityValue !== undefined && (
               <div className={`${styles.metaItem} ${styles.priorityBadge}`}>
                 <span className={styles.metaLabel}>{t('auth_files.priority_display')}</span>

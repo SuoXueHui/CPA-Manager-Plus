@@ -12,6 +12,7 @@ import (
 	accountactionsvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/accountaction"
 	adminauthsvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/adminauth"
 	apikeyaliassvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/apikeyalias"
+	authfileactivitysvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/authfileactivity"
 	automationsvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/automation"
 	bootstrapsvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/bootstrap"
 	codexinspectionsvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/codexinspection"
@@ -58,6 +59,7 @@ type Context struct {
 	AccountActionService           *accountactionsvc.Service
 	AccountProcessingPolicyService *automationsvc.Service
 	AuthFileMutationCoordinator    *cpaauthfiles.MutationCoordinator
+	AuthFileActivityService        *authfileactivitysvc.Service
 	ProxyService                   *proxysvc.Service
 	PanelService                   *panelsvc.Service
 	AutomationRuntimeService       AutomationRuntimeService
@@ -173,6 +175,7 @@ func fromExisting(
 		),
 		AccountProcessingPolicyService: accountProcessingPolicyService,
 		AuthFileMutationCoordinator:    authFileMutationCoordinator,
+		AuthFileActivityService:        authfileactivitysvc.New(st),
 		ProxyService: proxysvc.NewWithMutationCoordinator(
 			managerConfigService,
 			authFileMutationCoordinator,

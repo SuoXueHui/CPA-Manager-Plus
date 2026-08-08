@@ -24,14 +24,14 @@ vi.mock('axios', () => ({
   default: axiosMocks,
 }));
 
-import { dashboardApi, monitoringAnalyticsApi } from './usageService';
+import { dashboardApi, monitoringAnalyticsApi, usageServiceApi } from './usageService';
 
 interface Deferred<T> {
   promise: Promise<T>;
   resolve: (value: T) => void;
 }
 
-const createDeferred = <T,>(): Deferred<T> => {
+const createDeferred = <T>(): Deferred<T> => {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((resolver) => {
     resolve = resolver;
@@ -114,5 +114,27 @@ describe('dashboardApi report timeout', () => {
     });
 
     expect(axiosMocks.get.mock.calls[0]?.[1]?.timeout).toBe(90_000);
+  });
+});
+
+describe('usageServiceApi auth file activity', () => {
+  it('posts non-sensitive auth file metadata to the manager service', async () => {
+    axiosMocks.post.mockResolvedValueOnce({ data: { items: [] } });
+
+    await usageServiceApi.syncAuthFileActivity('http://manager.local/', 'admin-key', {
+      files: [{ authFileName: 'a.json', authIndex: 'auth-a', createdAtMs: 1_000 }],
+      observedAtMs: 2_000,
+    });
+
+    expect(axiosMocks.post).toHaveBeenCalledWith(
+      'http://manager.local/usage-service/auth-file-activity',
+      {
+        files: [{ authFileName: 'a.json', authIndex: 'auth-a', createdAtMs: 1_000 }],
+        observedAtMs: 2_000,
+      },
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer admin-key' },
+      })
+    );
   });
 });

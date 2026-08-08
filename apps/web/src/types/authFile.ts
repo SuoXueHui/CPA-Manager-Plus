@@ -33,6 +33,12 @@ export interface AuthFileItem {
   statusMessage?: string;
   lastRefresh?: string | number;
   modified?: number;
+  created_at?: string | number;
+  createdAt?: string | number;
+  modtime?: string | number;
+  updated_at?: string | number;
+  importedAtMs?: number;
+  lastRequestAtMs?: number;
   success?: unknown;
   failed?: unknown;
   project_id?: string;

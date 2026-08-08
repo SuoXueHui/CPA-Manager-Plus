@@ -11,6 +11,7 @@ import (
 	"github.com/seakee/cpa-manager-plus/apps/manager-server/internal/model"
 	"github.com/seakee/cpa-manager-plus/apps/manager-server/internal/repository/accountaction"
 	"github.com/seakee/cpa-manager-plus/apps/manager-server/internal/repository/apikeyalias"
+	"github.com/seakee/cpa-manager-plus/apps/manager-server/internal/repository/authfileactivity"
 	"github.com/seakee/cpa-manager-plus/apps/manager-server/internal/repository/codexinspection"
 	"github.com/seakee/cpa-manager-plus/apps/manager-server/internal/repository/datamigration"
 	"github.com/seakee/cpa-manager-plus/apps/manager-server/internal/repository/deadletter"
@@ -98,6 +99,9 @@ type UsagePricingHourlyRow = usagepricing.HourlyRow
 type UsagePricingAccountRow = usagepricing.AccountRow
 type UsageMonitoringState = usagemonitoring.State
 type UsageMonitoringCatchUpResult = usagemonitoring.CatchUpResult
+type AuthFileActivity = authfileactivity.Activity
+type AuthFileObservation = authfileactivity.FileObservation
+type AuthFileRequestActivity = authfileactivity.RequestActivity
 
 type UsageHourlyPricingSnapshot struct {
 	AggregateRows      []UsageHourlyAggregateRow
@@ -133,6 +137,7 @@ type Store struct {
 	UsagePricing     usagepricing.Repository
 	UsageMonitoring  usagemonitoring.Repository
 	UsageRollups     usagerollup.Repository
+	AuthFileActivity authfileactivity.Repository
 }
 
 func Open(path string, protector ...*security.Protector) (*Store, error) {
@@ -159,6 +164,7 @@ func New(db *sql.DB, protector ...*security.Protector) *Store {
 		UsagePricing:     usagepricing.New(db),
 		UsageMonitoring:  usagemonitoring.New(db),
 		UsageRollups:     usagerollup.New(db),
+		AuthFileActivity: authfileactivity.New(db),
 	}
 }
 
