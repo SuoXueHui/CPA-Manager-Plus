@@ -126,6 +126,7 @@ func runServer() {
 	accountHistoryRollupWorker.Start(ctx)
 	usageDerivedRollupWorker := worker.NewUsagePricingRollupWorker(db)
 	usageDerivedRollupWorker.Start(ctx)
+	authFileActivityWorker := worker.NewAuthFileActivityWorker(db)
 	serverApp.AppContext().ModelPriceService.SetPricesChangedNotifier(usageDerivedRollupWorker.Wake)
 	var usageHourlyAggregateWorker *worker.UsageHourlyAggregateWorker
 	if cfg.DashboardHourlyRollupEnabled {
@@ -148,6 +149,7 @@ func runServer() {
 	serverApp.AppContext().AutomationRuntimeService = automationRuntime
 	automationRuntime.Start(ctx)
 	manager.SetUsageEventHandler(worker.NewUsageEventFanout(
+		authFileActivityWorker,
 		automationRuntime.UsageEventHandler(),
 		accountHistoryRollupWorker,
 		usageDerivedRollupWorker,
