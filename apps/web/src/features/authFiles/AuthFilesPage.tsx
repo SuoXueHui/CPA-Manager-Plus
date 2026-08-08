@@ -116,6 +116,13 @@ import {
   selectAccountActionCandidate,
 } from '@/features/authFiles/model/accountAutomationPresentation';
 import {
+  mergeAuthFileActivity,
+  sortAuthFilesByActivity,
+  toAuthFileActivityInput,
+  type AuthFileActivityItem,
+  type AuthFileActivitySortMode,
+} from '@/features/authFiles/model/authFileActivity';
+import {
   createCodexInspectionConnectionFingerprint,
   loadCodexInspectionLastRun,
 } from '@/features/monitoring/codexInspection';
@@ -301,6 +308,7 @@ export function AuthFilesPage() {
   const cooldownReqId = useRef(0);
   const accountActionReqId = useRef(0);
   const headerSnapshotReqId = useRef(0);
+  const authFileActivityReqId = useRef(0);
   // Tracks the context identity so the layout effect can detect cross-context
   // transitions synchronously (before passive effects fire) and invalidate any
   // in-flight request that belongs to the old context.
@@ -342,11 +350,55 @@ export function AuthFilesPage() {
     batchPatchFields,
     batchDelete,
   } = useAuthFilesData({ connectionFingerprint });
+  const activityContextKey = getQuotaCooldownContextKey(managerServiceBase, managementKey);
+  const [authFileActivityState, setAuthFileActivityState] = useState<{
+    contextKey: string;
+    items: AuthFileActivityItem[];
+  }>(() => ({ contextKey: activityContextKey, items: [] }));
   const loadFilesRef = useRef(loadFiles);
 
   useLayoutEffect(() => {
     loadFilesRef.current = loadFiles;
   }, [loadFiles]);
+
+  useLayoutEffect(() => {
+    if (authFileActivityState.contextKey === activityContextKey) return;
+    authFileActivityReqId.current += 1;
+    setAuthFileActivityState({ contextKey: activityContextKey, items: [] });
+  }, [activityContextKey, authFileActivityState.contextKey]);
+
+  useEffect(() => {
+    if (!isCurrentLayer || !managerServiceBase) return;
+    const activityFiles = files.filter((file) => !isRuntimeOnlyAuthFile(file));
+    if (activityFiles.length === 0) {
+      setAuthFileActivityState({ contextKey: activityContextKey, items: [] });
+      return;
+    }
+    if (typeof usageServiceApi.syncAuthFileActivity !== 'function') return;
+
+    const requestId = ++authFileActivityReqId.current;
+    void usageServiceApi
+      .syncAuthFileActivity(managerServiceBase, managementKey, {
+        files: activityFiles.map(toAuthFileActivityInput),
+        observedAtMs: Date.now(),
+      })
+      .then((response) => {
+        if (requestId !== authFileActivityReqId.current) return;
+        setAuthFileActivityState({ contextKey: activityContextKey, items: response.items ?? [] });
+      })
+      .catch(() => {
+        // Keep local created/modified timestamp fallbacks when Manager Server is unavailable.
+      });
+  }, [activityContextKey, files, isCurrentLayer, managementKey, managerServiceBase]);
+
+  const filesWithActivity = useMemo(
+    () =>
+      mergeAuthFileActivity(
+        files,
+        authFileActivityState.contextKey === activityContextKey ? authFileActivityState.items : []
+      ),
+    [activityContextKey, authFileActivityState, files]
+  );
 
   const statusBarCache = useAuthFilesStatusBarCache(files);
   const uniqueAuthFileKeyByFallbackCooldownKey = useMemo(() => {
@@ -1166,7 +1218,7 @@ export function AuthFilesPage() {
 
   const filesMatchingStatusFilters = useMemo(
     () =>
-      files.filter((file) => {
+      filesWithActivity.filter((file) => {
         if (disabledOnly && file.disabled !== true) return false;
         const codexStatus = codexStatusByAuthFileKey.get(
           getAuthFileCodexInspectionKeyForFile(file)
@@ -1208,7 +1260,7 @@ export function AuthFilesPage() {
       codexStatusByAuthFileKey,
       codexStatusFilter,
       disabledOnly,
-      files,
+      filesWithActivity,
       getAccountActionsForFile,
       getDisplayCodexQuota,
       getQuotaCooldownForFile,
@@ -1228,6 +1280,10 @@ export function AuthFilesPage() {
       { value: 'priority-asc', label: t('auth_files.sort_priority_asc') },
       { value: 'plan-desc', label: t('auth_files.sort_plan_desc') },
       { value: 'plan-asc', label: t('auth_files.sort_plan_asc') },
+      { value: 'imported-desc', label: t('auth_files.sort_imported_desc') },
+      { value: 'imported-asc', label: t('auth_files.sort_imported_asc') },
+      { value: 'last-request-desc', label: t('auth_files.sort_last_request_desc') },
+      { value: 'last-request-asc', label: t('auth_files.sort_last_request_asc') },
     ],
     [t]
   );
@@ -1372,6 +1428,13 @@ export function AuthFilesPage() {
 
         return compareAuthFileName(a, b);
       });
+    } else if (
+      sortMode === 'imported-desc' ||
+      sortMode === 'imported-asc' ||
+      sortMode === 'last-request-desc' ||
+      sortMode === 'last-request-asc'
+    ) {
+      return sortAuthFilesByActivity(copy, sortMode as AuthFileActivitySortMode);
     }
     return copy;
   }, [filtered, getDisplayCodexQuota, headerSnapshotLookup, sortMode]);

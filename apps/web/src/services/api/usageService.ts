@@ -20,6 +20,10 @@ import {
 import { isDemoMode } from '@/features/demo/demoMode';
 import { hasCodexInspectionStableIdentity } from '@/features/monitoring/model/codexInspectionOwnership';
 import type { AuthFileItem } from '@/types';
+import type {
+  AuthFileActivitySyncRequest,
+  AuthFileActivitySyncResponse,
+} from '@/features/authFiles/model/authFileActivity';
 import { normalizeApiBase } from '@/utils/connection';
 import {
   getAuthFileStatusIdentityKey,
@@ -1597,7 +1601,13 @@ const runSerializedMonitoringRequest = async <T>(
   const current = new Promise<void>((resolve) => {
     releaseCurrent = resolve;
   });
-  monitoringRequestChains.set(queueKey, previous.then(() => current, () => current));
+  monitoringRequestChains.set(
+    queueKey,
+    previous.then(
+      () => current,
+      () => current
+    )
+  );
 
   try {
     await waitForMonitoringRequestTurn(previous, signal);
@@ -2210,6 +2220,37 @@ export const usageServiceApi = {
       const response = await axios.get<UsageServiceInfo>(buildUrl(base, '/usage-service/info'), {
         timeout: USAGE_SERVICE_TIMEOUT_MS,
       });
+      return response.data;
+    });
+  },
+
+  syncAuthFileActivity: async (
+    base: string,
+    managementKey: string | undefined,
+    payload: AuthFileActivitySyncRequest
+  ): Promise<AuthFileActivitySyncResponse> => {
+    if (__DEMO_SITE__ && isDemoMode()) {
+      return {
+        items: payload.files.map((file) => ({
+          identityKey: file.authIndex
+            ? `auth-index:${file.authIndex}`
+            : `file:${file.authFileName}`,
+          authFileName: file.authFileName,
+          authIndex: file.authIndex,
+          importedAtMs: file.createdAtMs ?? file.modifiedAtMs ?? payload.observedAtMs,
+        })),
+      };
+    }
+
+    return withUsageServiceError(async () => {
+      const response = await axios.post<AuthFileActivitySyncResponse>(
+        buildUrl(base, '/usage-service/auth-file-activity'),
+        payload,
+        {
+          timeout: USAGE_SERVICE_TIMEOUT_MS,
+          headers: authHeaders(managementKey),
+        }
+      );
       return response.data;
     });
   },
