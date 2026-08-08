@@ -33,3 +33,12 @@
 - 前端新增四种排序；导入时间未知值始终靠后，最久未用排序中从未请求值靠前。
 - 前端生产构建仍输出 `apps/web/dist/index.html`；原生发布脚本会在打包工作目录中将该文件复制为嵌入式 `management.html`，无需把构建产物直接提交到源码树。
 - 项目知识目录此前不存在，本次按长期维护需要创建最小同步规则，并记录新增接口、数据表和排序语义。
+
+## 线上发布
+
+- 功能分支已通过非快进合并进入本地 `master`，合并提交为 `206398f5`。
+- 线上只重建 `cpa-manager-plus`；`cli-proxy-api` 容器未重启，仍保持原运行镜像和启动时间。
+- 新镜像为 `cpa-manager-plus:master-auth-file-time-206398f5`；旧镜像 `cpa-manager-plus:master-v1.11.12-6ce1140c` 保留用于回滚。
+- 回滚目录为 `/data/apps/cpa-manager-plus/releases/master-auth-file-time-20260809-0121/`，包含发布前后 compose、container inspect、镜像引用、data key 备份和产物摘要。
+- 迁移只新增 `auth_file_activity` 表，不改写认证 JSON；发布后真实同步 593 个认证文件，全部获得导入时间，其中 499 个具有最后请求时间。
+- 外部 `/health`、`/management.html` 和已鉴权活动同步接口均返回 200；线上面板 SHA256 与本地构建产物一致。

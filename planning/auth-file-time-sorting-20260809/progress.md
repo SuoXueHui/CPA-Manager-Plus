@@ -20,4 +20,13 @@
 - `git diff --check` 通过；临时 Go 构建产物已清理，未把生成二进制加入工作区。
 - 已检查项目 `AGENTS.md`，现有规则能够覆盖本次变更，无需修改。
 - 已检查 Obsidian 项目知识目录；原目录不存在，已创建最小同步规则和本次接口/数据结构、变更记录。
-- 当前阶段：实现与验证完成，等待选择合并、PR 或保留分支。
+- 已创建 `backup/master-pre-auth-file-time-20260809`，并将功能分支非快进合并到本地 `master`，合并提交 `206398f5`。
+- 合并后的 `master` 再次通过 Manager 全量测试、相关包竞态测试、Go 构建，以及前端 type-check、lint、137 个测试文件/1378 个测试和生产构建。
+- 发布前只读确认线上旧镜像为 `cpa-manager-plus:master-v1.11.12-6ce1140c`，容器 healthy、重启次数 0；数据库约 40 GiB，`auth_file_activity` 表尚不存在。
+- 已在独立临时目录嵌入最新前端并交叉编译 Linux amd64 静态二进制；上传后完成 SHA256 校验和空数据库容器冒烟测试。
+- 已创建线上回滚目录 `/data/apps/cpa-manager-plus/releases/master-auth-file-time-20260809-0121/`，保留旧 compose、inspect、镜像引用、data key 和旧镜像。
+- 已发布 `cpa-manager-plus:master-auth-file-time-206398f5`；只重建 Manager 容器，CPA/CLIProxyAPI 未重启。
+- 发布后容器连续健康、重启次数 0；外部 health/management 页面 200，活动同步接口 200，数据库新表存在。
+- 已用真实 CPA 认证列表同步 593 个非 runtime 文件：593 个返回导入时间，499 个返回最后请求时间；没有输出或持久化认证内容。
+- 线上面板 SHA256 为 `c023c1b9...127838`，与本地生产构建一致；排序键和新接口路径均已确认包含在面板中。
+- 当前阶段：合并与线上发布完成。
