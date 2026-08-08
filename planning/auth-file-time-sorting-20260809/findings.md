@@ -23,3 +23,13 @@
 - usage collector 支持多个 `HandleUsageEvents` handler，通过 `worker.UsageEventFanout` 接线；活动更新可作为独立 worker 接入，不侵入现有自动禁用逻辑。
 - Manager Server 已有受认证的 `/usage-service/*` API，前端 `usageServiceApi` 可增加活动同步接口。
 - 认证文件前端列表继续从 CPA `/auth-files` 获取；活动接口只接收并解析非敏感的文件身份和时间元数据，不传认证内容。
+
+## 实施结果
+
+- 新增 `/usage-service/auth-file-activity`，由 Manager 面板认证保护。
+- usage collector 在原始请求进入保留清理前更新 `last_request_at_ms`，成功和失败请求均计入。
+- 页面会把 CPA 文件列表的 `created_at/modtime` 作为存量回填输入；Manager 一旦保存 `imported_at_ms` 后不再被修改时间覆盖。
+- 兼容缺少 `auth_index` 的旧事件：先按文件名记录，后续发现稳定 `auth_index` 时合并，避免形成两个互相脱节的活动记录。
+- 前端新增四种排序；导入时间未知值始终靠后，最久未用排序中从未请求值靠前。
+- 前端生产构建仍输出 `apps/web/dist/index.html`；原生发布脚本会在打包工作目录中将该文件复制为嵌入式 `management.html`，无需把构建产物直接提交到源码树。
+- 项目知识目录此前不存在，本次按长期维护需要创建最小同步规则，并记录新增接口、数据表和排序语义。
