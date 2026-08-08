@@ -80,7 +80,7 @@ func (r *repository) ObserveFiles(ctx context.Context, observations []FileObserv
 		scopeKey := normalizeScopeKey(observation.ScopeKey)
 		fileName := strings.TrimSpace(observation.AuthFileName)
 		authIndex := strings.TrimSpace(observation.AuthIndex)
-		identityKey := identityKey(authIndex, fileName)
+		identityKey := IdentityKey(authIndex, fileName)
 		if scopeKey == "" || identityKey == "" {
 			continue
 		}
@@ -139,7 +139,7 @@ func (r *repository) RecordRequests(ctx context.Context, requests []RequestActiv
 		scopeKey := normalizeScopeKey(request.ScopeKey)
 		fileName := strings.TrimSpace(request.AuthFileName)
 		authIndex := strings.TrimSpace(request.AuthIndex)
-		identityKey := identityKey(authIndex, fileName)
+		identityKey := IdentityKey(authIndex, fileName)
 		if scopeKey == "" || identityKey == "" || request.RequestedAtMS <= 0 {
 			continue
 		}
@@ -246,7 +246,9 @@ func (r *repository) ListByScope(ctx context.Context, scopeKey string) ([]Activi
 	return items, nil
 }
 
-func identityKey(authIndex, fileName string) string {
+// IdentityKey returns the stable, non-sensitive key shared by activity
+// ingestion and auth-file listing synchronization.
+func IdentityKey(authIndex, fileName string) string {
 	if authIndex = strings.TrimSpace(authIndex); authIndex != "" {
 		return "auth-index:" + authIndex
 	}
