@@ -104,6 +104,26 @@ func (r *repository) ObserveFiles(ctx context.Context, observations []FileObserv
 		); err != nil {
 			return fmt.Errorf("observe auth file %q: %w", fileName, err)
 		}
+		// Older CPA usage records may identify a credential only by file name.
+		// Once the stable auth index becomes available, merge that provisional
+		// row so the page does not lose its historical last-request timestamp.
+		if authIndex != "" && fileName != "" {
+			fileIdentityKey := IdentityKey("", fileName)
+			if _, err := tx.ExecContext(ctx, `update auth_file_activity
+				set last_request_at_ms = max(last_request_at_ms, coalesce((
+					select last_request_at_ms from auth_file_activity
+					where scope_key = ? and identity_key = ?
+				), 0))
+				where scope_key = ? and identity_key = ?`,
+				scopeKey, fileIdentityKey, scopeKey, identityKey,
+			); err != nil {
+				return fmt.Errorf("merge file-only auth activity for %q: %w", fileName, err)
+			}
+			if _, err := tx.ExecContext(ctx, `delete from auth_file_activity
+				where scope_key = ? and identity_key = ?`, scopeKey, fileIdentityKey); err != nil {
+				return fmt.Errorf("remove merged file-only auth activity for %q: %w", fileName, err)
+			}
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit auth file observations: %w", err)
@@ -142,6 +162,22 @@ func (r *repository) RecordRequests(ctx context.Context, requests []RequestActiv
 		identityKey := IdentityKey(authIndex, fileName)
 		if scopeKey == "" || identityKey == "" || request.RequestedAtMS <= 0 {
 			continue
+		}
+		if authIndex == "" && fileName != "" {
+			result, err := tx.ExecContext(ctx, `update auth_file_activity
+				set last_request_at_ms = max(last_request_at_ms, ?),
+					updated_at_ms = max(updated_at_ms, ?)
+				where scope_key = ? and auth_file_name = ?`,
+				request.RequestedAtMS, request.RequestedAtMS, scopeKey, fileName,
+			)
+			if err != nil {
+				return fmt.Errorf("update file-only request activity for %q: %w", fileName, err)
+			}
+			if affected, err := result.RowsAffected(); err != nil {
+				return fmt.Errorf("read file-only request activity result for %q: %w", fileName, err)
+			} else if affected > 0 {
+				continue
+			}
 		}
 		if _, err := stmt.ExecContext(
 			ctx,

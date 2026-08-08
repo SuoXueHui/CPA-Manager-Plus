@@ -109,6 +109,44 @@ func TestObserveFilesFillsImportTimeForRequestCreatedRow(t *testing.T) {
 	}
 }
 
+func TestFileNameOnlyRequestsMergeIntoIndexedIdentity(t *testing.T) {
+	repo, closeDB := newTestRepository(t)
+	defer closeDB()
+
+	ctx := context.Background()
+	if err := repo.RecordRequests(ctx, []RequestActivity{{
+		ScopeKey:      "http://cpa-a",
+		AuthFileName:  "codex-a.json",
+		RequestedAtMS: 4_000,
+	}}); err != nil {
+		t.Fatalf("record legacy request: %v", err)
+	}
+	if err := repo.ObserveFiles(ctx, []FileObservation{{
+		ScopeKey:     "http://cpa-a",
+		AuthFileName: "codex-a.json",
+		AuthIndex:    "auth-a",
+		ImportedAtMS: 1_000,
+		ObservedAtMS: 4_500,
+	}}); err != nil {
+		t.Fatalf("observe indexed file: %v", err)
+	}
+	if err := repo.RecordRequests(ctx, []RequestActivity{{
+		ScopeKey:      "http://cpa-a",
+		AuthFileName:  "codex-a.json",
+		RequestedAtMS: 5_000,
+	}}); err != nil {
+		t.Fatalf("record later legacy request: %v", err)
+	}
+
+	items, err := repo.ListByScope(ctx, "http://cpa-a")
+	if err != nil {
+		t.Fatalf("list activity: %v", err)
+	}
+	if len(items) != 1 || items[0].AuthIndex != "auth-a" || items[0].LastRequestAtMS != 5_000 {
+		t.Fatalf("items = %#v", items)
+	}
+}
+
 func TestBackfillLastRequestsUsesAccountRollups(t *testing.T) {
 	repo, closeDB := newTestRepository(t)
 	defer closeDB()
