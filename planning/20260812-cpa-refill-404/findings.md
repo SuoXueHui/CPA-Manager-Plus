@@ -7,3 +7,9 @@
 - `apiClient.setConfig()` 会通过 `computeApiUrl()` 将基础地址固定为 `<origin>/v0/management`；项目中其他 `apiClient` service 均使用 `/config`、`/auth-files` 等相对此 management base 的路径。
 - `cpaRefill.ts` 独自把 `BASE_PATH` 写成 `/v0/management/cpa-refill`，现有 mock 测试也错误固化了这个重复前缀，解释了为何服务端直连测试通过而真实浏览器失败。
 - 最小修复后生产 bundle 包含 `/cpa-refill`，不再包含 `/v0/management/cpa-refill` 或双前缀；Manager Server 仍在 apiClient base 层统一添加 `/v0/management`。
+- 修复已合并到本地 `master@d2a4a870`，线上镜像为 `cpa-manager-plus:master-cpa-refill-404-d2a4a870-amd64`；仅 Manager 被 recreate，Controller 与 CPA 容器未重启。
+- 用户原 Chrome 标签 reload 后，404 和“不可用”均消失；overview 显示 available account `1`、容量缺口 `0`、计划补号 `0`、队列 `0/4096`，账号页筛选与实际行可见。
+- 浏览器 reload 后 access log 请求均为 `/v0/management/cpa-refill/*` 且返回 200；overview 约 2.4--3.4 ms、账号列表约 7.4 ms。17:07:17--17:07:47 的 3 条双前缀 404 来自旧页面 bundle 在 reload 前的残留轮询，17:08 后未再出现。
+- Manager 重启后短时占用约 1 个 CPU core、RSS 约 20 MiB；CPA/Controller 状态与资源未受影响。需继续观察该既有 Manager 启动期后台工作是否按预期回落。
+- 最终复核时 Manager 启动期 CPU 已回落到约 `0.19%`，RSS 约 `21.5 MiB`；17:08 后累计 23 条自动补号请求全部使用正确路径并返回 200，双前缀和非 200 均为 0。
+- 回滚目录为 `/data/apps/cpa-manager-plus/backups/20260811T170702Z-cpa-refill-404`，旧镜像仍保留。

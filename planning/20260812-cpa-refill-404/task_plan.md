@@ -9,9 +9,9 @@
 1. [complete] 从浏览器、Manager access log 与现网 API 复现并定位根因
 2. [complete] 建立独立分支和 RED 回归测试
 3. [complete] 实施最小 URL 修复并通过定向/全量测试与生产构建
-4. [in_progress] 合并本地 master、构建并发布 Manager 镜像
-5. [pending] 在用户当前 Chrome 页面验证 overview、列表、筛选和错误消失
-6. [pending] 更新 planning、知识文档和回滚记录
+4. [complete] 合并本地 master、构建并发布 Manager 镜像
+5. [complete] 在用户当前 Chrome 页面验证 overview、列表、筛选和错误消失
+6. [complete] 更新 planning、知识文档和回滚记录
 
 ## 约束
 
@@ -25,3 +25,4 @@
 | 时间 | 错误 | 次数 | 处理 |
 |---|---|---:|---|
 | 2026-08-12 | 浏览器页面 evaluate 中 `performance` 不可用 | 1 | 不重复尝试；改用 Manager access log 获取真实请求路径，成功定位双前缀 |
+| 2026-08-12 | Chrome 控制接口不支持 `networkidle` load state | 1 | reload 已完成，不重复该等待；改用短暂条件等待后读取 DOM，成功验证页面数据 |
