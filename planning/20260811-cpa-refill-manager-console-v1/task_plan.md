@@ -6,13 +6,13 @@
 
 ## 阶段
 
-1. [in_progress] 建立隔离分支、项目规则并扫描真实 Manager Server/React 架构。
-2. [pending] 固化 Controller API、Manager 配置和 Admin Key 复用方式。
-3. [pending] TDD 实现 Manager Server 配置、0600 token 读取和显式代理路由。
-4. [pending] TDD 实现 React API client、路由、左侧菜单和自动补号页面。
-5. [pending] 确认前端构建产物与 Manager Server 内嵌页面同步。
-6. [pending] 执行 Go/Node 全量测试、race、lint、type-check 和 build。
-7. [pending] 完成 review、planning 和知识同步检查并提交。
+1. [completed] 建立隔离分支、项目规则并扫描真实 Manager Server/React 架构。
+2. [completed] 固化 Controller API、Manager 配置和 Admin Key 复用方式。
+3. [completed] TDD 实现 Manager Server 配置、0600 token 读取和显式代理路由。
+4. [completed] TDD 实现 React API client、路由、左侧菜单和自动补号页面。
+5. [completed] 确认前端构建产物与 Manager Server 内嵌页面同步。
+6. [completed] 执行 Go/Node 全量测试、race、lint、type-check 和 build。
+7. [completed] 完成 review、planning 和知识同步检查并提交。
 
 ## 强制边界
 

@@ -29,6 +29,7 @@ import { ModelPricesPage } from '@/pages/ModelPricesPage';
 import { CodexInspectionPage } from '@/pages/CodexInspectionPage';
 import { ServerCodexInspectionPage } from '@/pages/ServerCodexInspectionPage';
 import { ConfigPage } from '@/pages/ConfigPage';
+import { CPARefillPage } from '@/pages/CPARefillPage';
 import { LogsPage } from '@/pages/LogsPage';
 import { PluginResourcePage } from '@/pages/PluginResourcePage';
 import { PluginsPage } from '@/pages/PluginsPage';
@@ -41,7 +42,11 @@ import { ensureRouteBasePathname, isDemoMode } from '@/features/demo/demoMode';
 import { useAuthStore, useConfigStore } from '@/stores';
 import codexInspectionStyles from '@/features/monitoring/CodexInspectionPage.module.scss';
 
-type FeatureKey = 'requestMonitoring' | 'modelPrices' | 'serverCodexInspection';
+type FeatureKey =
+  | 'managerService'
+  | 'requestMonitoring'
+  | 'modelPrices'
+  | 'serverCodexInspection';
 
 function PluginGate({ children }: { children: ReactElement }) {
   const supportsPlugin = useAuthStore((state) => state.supportsPlugin);
@@ -64,8 +69,13 @@ function FeatureGate({
   fallback?: ReactElement | null;
 }) {
   const availability = usePanelFeatureAvailability();
+  if (feature === 'managerService' && __DEMO_SITE__ && isDemoMode()) {
+    return <Navigate to="/" replace />;
+  }
   const enabled =
-    feature === 'requestMonitoring'
+    feature === 'managerService'
+      ? availability.managerServiceAvailable
+      : feature === 'requestMonitoring'
       ? availability.requestMonitoringAvailable
       : feature === 'modelPrices'
         ? availability.modelPricesAvailable
@@ -232,6 +242,14 @@ const mainRoutes: RouteObject[] = [
     element: (
       <FeatureGate feature="requestMonitoring">
         <MonitoringCenterPage />
+      </FeatureGate>
+    ),
+  },
+  {
+    path: '/cpa-refill',
+    element: (
+      <FeatureGate feature="managerService">
+        <CPARefillPage />
       </FeatureGate>
     ),
   },

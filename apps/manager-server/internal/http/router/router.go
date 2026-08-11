@@ -10,6 +10,7 @@ import (
 	authfileactivitycontroller "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/http/controller/authfileactivity"
 	automationcontroller "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/http/controller/automation"
 	codexinspectioncontroller "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/http/controller/codexinspection"
+	cparefillcontroller "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/http/controller/cparefill"
 	dashboardcontroller "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/http/controller/dashboard"
 	healthcontroller "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/http/controller/health"
 	managerconfigcontroller "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/http/controller/managerconfig"
@@ -38,6 +39,7 @@ func New(appCtx *app.Context) http.Handler {
 	quotaCooldownHandler := &quotacooldowncontroller.Handler{App: appCtx}
 	authFileActivityHandler := &authfileactivitycontroller.Handler{App: appCtx}
 	codexInspectionHandler := &codexinspectioncontroller.Handler{App: appCtx}
+	cpaRefillHandler := &cparefillcontroller.Handler{App: appCtx}
 	dashboardHandler := &dashboardcontroller.Handler{App: appCtx}
 	monitoringHandler := &monitoringcontroller.Handler{App: appCtx}
 	proxyHandler := &proxycontroller.Handler{App: appCtx}
@@ -53,7 +55,7 @@ func New(appCtx *app.Context) http.Handler {
 	mux.HandleFunc("/usage-service/auth-file-activity", middleware.WithCORS(appCtx.Config, authFileActivityHandler.Handle))
 	mux.HandleFunc("/setup", middleware.WithCORS(appCtx.Config, setupHandler.Setup))
 	mux.HandleFunc("/management.html", panelHandler.ManagementHTML)
-	mux.HandleFunc("/", rootHandler(appCtx, usageHandler, modelPriceHandler, apiKeyAliasHandler, accountActionHandler, codexInspectionHandler, dashboardHandler, monitoringHandler, proxyHandler))
+	mux.HandleFunc("/", rootHandler(appCtx, usageHandler, modelPriceHandler, apiKeyAliasHandler, accountActionHandler, codexInspectionHandler, cpaRefillHandler, dashboardHandler, monitoringHandler, proxyHandler))
 
 	return middleware.Recovery(middleware.RequestLogger(mux))
 }
@@ -65,6 +67,7 @@ func rootHandler(
 	apiKeyAliasHandler *apikeyaliascontroller.Handler,
 	accountActionHandler *accountactioncontroller.Handler,
 	codexInspectionHandler *codexinspectioncontroller.Handler,
+	cpaRefillHandler *cparefillcontroller.Handler,
 	dashboardHandler *dashboardcontroller.Handler,
 	monitoringHandler *monitoringcontroller.Handler,
 	proxyHandler *proxycontroller.Handler,
@@ -89,6 +92,11 @@ func rootHandler(
 		}
 		if strings.HasPrefix(r.URL.Path, "/v0/management/codex-inspection") {
 			middleware.WithCORS(appCtx.Config, codexInspectionHandler.Handle)(w, r)
+			return
+		}
+		// 自动补号前缀必须先于通用 CPA management 代理截获；未知子路由也由专用 handler 关闭。
+		if r.URL.Path == "/v0/management/cpa-refill" || strings.HasPrefix(r.URL.Path, "/v0/management/cpa-refill/") {
+			middleware.WithCORS(appCtx.Config, cpaRefillHandler.Handle)(w, r)
 			return
 		}
 		if strings.HasPrefix(r.URL.Path, "/v0/management/dashboard/") {

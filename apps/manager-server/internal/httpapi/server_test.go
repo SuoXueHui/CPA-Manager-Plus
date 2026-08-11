@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -274,6 +275,90 @@ func TestModelListProxyRequiresSetup(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), "usage service is not configured") {
 		t.Fatalf("response body = %s", rr.Body.String())
+	}
+}
+
+func TestCPARefillProxyRequiresAdminAndUsesSeparatedControllerTokens(t *testing.T) {
+	var readAuth, writeAuth atomic.Value
+	controller := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method + " " + r.URL.Path {
+		case http.MethodGet + " /internal/v1/management/overview":
+			readAuth.Store(r.Header.Get("Authorization"))
+			_, _ = w.Write([]byte(`{"mode":"observe"}`))
+		case http.MethodPost + " /internal/v1/management/actions/pause":
+			writeAuth.Store(r.Header.Get("Authorization"))
+			w.WriteHeader(http.StatusAccepted)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(controller.Close)
+
+	secretDir := t.TempDir()
+	readTokenPath := filepath.Join(secretDir, "controller-read.token")
+	writeTokenPath := filepath.Join(secretDir, "controller-write.token")
+	if err := os.WriteFile(readTokenPath, []byte("controller-read"), 0o600); err != nil {
+		t.Fatalf("write read token: %v", err)
+	}
+	if err := os.WriteFile(writeTokenPath, []byte("controller-write"), 0o600); err != nil {
+		t.Fatalf("write write token: %v", err)
+	}
+	if err := os.Chmod(readTokenPath, 0o600); err != nil {
+		t.Fatalf("chmod read token: %v", err)
+	}
+	if err := os.Chmod(writeTokenPath, 0o600); err != nil {
+		t.Fatalf("chmod write token: %v", err)
+	}
+	handler := newTestHandlerWithConfig(t, config.Config{
+		CPARefillControllerURL:  controller.URL,
+		CPARefillReadTokenFile:  readTokenPath,
+		CPARefillWriteTokenFile: writeTokenPath,
+	})
+
+	unauthorized := testutil.Request(t, handler, http.MethodGet, "/v0/management/cpa-refill/overview", "", "")
+	testutil.RequireStatus(t, unauthorized, http.StatusUnauthorized)
+
+	authorizedRead := testutil.Request(t, handler, http.MethodGet, "/v0/management/cpa-refill/overview", "", testutil.AdminKey)
+	testutil.RequireStatus(t, authorizedRead, http.StatusOK)
+	if got, _ := readAuth.Load().(string); got != "Bearer controller-read" {
+		t.Fatalf("read controller auth = %q", got)
+	}
+
+	authorizedWrite := testutil.Request(t, handler, http.MethodPost, "/v0/management/cpa-refill/actions/pause", `{"reason":"maintenance"}`, testutil.AdminKey)
+	testutil.RequireStatus(t, authorizedWrite, http.StatusAccepted)
+	if got, _ := writeAuth.Load().(string); got != "Bearer controller-write" {
+		t.Fatalf("write controller auth = %q", got)
+	}
+}
+
+func TestCPARefillUnknownRouteDoesNotFallThroughToCPAProxy(t *testing.T) {
+	var controllerHits atomic.Int32
+	controller := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		controllerHits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(controller.Close)
+	secretDir := t.TempDir()
+	readTokenPath := filepath.Join(secretDir, "controller-read.token")
+	writeTokenPath := filepath.Join(secretDir, "controller-write.token")
+	for path, token := range map[string]string{readTokenPath: "read", writeTokenPath: "write"} {
+		if err := os.WriteFile(path, []byte(token), 0o600); err != nil {
+			t.Fatalf("write token: %v", err)
+		}
+		if err := os.Chmod(path, 0o600); err != nil {
+			t.Fatalf("chmod token: %v", err)
+		}
+	}
+	handler := newTestHandlerWithConfig(t, config.Config{
+		CPARefillControllerURL:  controller.URL,
+		CPARefillReadTokenFile:  readTokenPath,
+		CPARefillWriteTokenFile: writeTokenPath,
+	})
+
+	response := testutil.Request(t, handler, http.MethodGet, "/v0/management/cpa-refill/unknown", "", testutil.AdminKey)
+	testutil.RequireStatus(t, response, http.StatusNotFound)
+	if controllerHits.Load() != 0 {
+		t.Fatalf("unknown route reached controller: %d", controllerHits.Load())
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 	codexinspectionsvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/codexinspection"
 	collectorsvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/collector"
 	"github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/cpaauthfiles"
+	cparefillsvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/cparefill"
 	dashboardsvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/dashboard"
 	managerconfigsvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/managerconfig"
 	modelpricesvc "github.com/seakee/cpa-manager-plus/apps/manager-server/internal/service/modelprice"
@@ -60,6 +61,7 @@ type Context struct {
 	AccountProcessingPolicyService *automationsvc.Service
 	AuthFileMutationCoordinator    *cpaauthfiles.MutationCoordinator
 	AuthFileActivityService        *authfileactivitysvc.Service
+	CPARefillService               *cparefillsvc.Service
 	ProxyService                   *proxysvc.Service
 	PanelService                   *panelsvc.Service
 	AutomationRuntimeService       AutomationRuntimeService
@@ -176,6 +178,11 @@ func fromExisting(
 		AccountProcessingPolicyService: accountProcessingPolicyService,
 		AuthFileMutationCoordinator:    authFileMutationCoordinator,
 		AuthFileActivityService:        authfileactivitysvc.New(st),
+		CPARefillService: cparefillsvc.New(cparefillsvc.Config{
+			ControllerURL:  cfg.CPARefillControllerURL,
+			ReadTokenFile:  cfg.CPARefillReadTokenFile,
+			WriteTokenFile: cfg.CPARefillWriteTokenFile,
+		}),
 		ProxyService: proxysvc.NewWithMutationCoordinator(
 			managerConfigService,
 			authFileMutationCoordinator,
