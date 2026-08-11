@@ -677,6 +677,16 @@ export function IconSidebarMonitor({ size = 20, ...props }: IconProps) {
   );
 }
 
+export function IconSidebarRefill({ size = 20, ...props }: IconProps) {
+  return (
+    <svg {...sidebarSvgProps} width={size} height={size} {...props}>
+      <path d="M12 3v18" />
+      <path d="M16.5 7.2c-.8-1.2-2.2-2-4.2-2H10c-2 0-3.5 1.1-3.5 2.8 0 1.8 1.4 2.5 3.7 2.9l3.1.6c2.5.5 4.2 1.4 4.2 3.6 0 2.1-1.9 3.7-5 3.7H10c-2.1 0-3.8-.8-4.8-2.3" />
+      <path d="m18.5 4.5 2 2-2 2" fill="currentColor" fillOpacity="0.12" />
+    </svg>
+  );
+}
+
 export function IconSidebarLogs({ size = 20, ...props }: IconProps) {
   return (
     <svg {...sidebarSvgProps} width={size} height={size} {...props}>

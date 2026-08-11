@@ -197,6 +197,61 @@ func TestLoadEnvOverridesConfig(t *testing.T) {
 	}
 }
 
+func TestLoadReadsCPARefillControllerConfigWithoutLoadingTokens(t *testing.T) {
+	clearConfigEnv(t)
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.json")
+	if err := os.WriteFile(configPath, []byte(`{
+  "cpaRefillControllerUrl": "http://controller.local:19010",
+  "cpaRefillReadTokenFile": "secrets/read.token",
+  "cpaRefillWriteTokenFile": "secrets/write.token"
+}`), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	t.Setenv(configEnvKey, configPath)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.CPARefillControllerURL != "http://controller.local:19010" {
+		t.Fatalf("CPARefillControllerURL = %q", cfg.CPARefillControllerURL)
+	}
+	if want := filepath.Join(dir, "secrets", "read.token"); cfg.CPARefillReadTokenFile != want {
+		t.Fatalf("CPARefillReadTokenFile = %q, want %q", cfg.CPARefillReadTokenFile, want)
+	}
+	if want := filepath.Join(dir, "secrets", "write.token"); cfg.CPARefillWriteTokenFile != want {
+		t.Fatalf("CPARefillWriteTokenFile = %q, want %q", cfg.CPARefillWriteTokenFile, want)
+	}
+}
+
+func TestLoadCPARefillControllerEnvOverridesFileConfig(t *testing.T) {
+	clearConfigEnv(t)
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.json")
+	if err := os.WriteFile(configPath, []byte(`{
+  "cpaRefillControllerUrl": "http://file-controller.local:19010",
+  "cpaRefillReadTokenFile": "file-read.token",
+  "cpaRefillWriteTokenFile": "file-write.token"
+}`), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	t.Setenv(configEnvKey, configPath)
+	t.Setenv("CPA_REFILL_CONTROLLER_URL", "http://env-controller.local:19010")
+	t.Setenv("CPA_REFILL_CONTROLLER_READ_TOKEN_FILE", "/run/secrets/controller_read_token")
+	t.Setenv("CPA_REFILL_CONTROLLER_WRITE_TOKEN_FILE", "/run/secrets/controller_write_token")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.CPARefillControllerURL != "http://env-controller.local:19010" ||
+		cfg.CPARefillReadTokenFile != "/run/secrets/controller_read_token" ||
+		cfg.CPARefillWriteTokenFile != "/run/secrets/controller_write_token" {
+		t.Fatalf("CPA refill env config = %#v", cfg)
+	}
+}
+
 func TestNormalizeCollectorMode(t *testing.T) {
 	cases := []struct {
 		input string
@@ -245,6 +300,9 @@ func clearConfigEnv(t *testing.T) {
 		"USAGE_IMPORT_DISK_QUOTA_BYTES",
 		"USAGE_IMPORT_MAX_SESSIONS",
 		"USAGE_IMPORT_SESSION_TTL_MINUTES",
+		"CPA_REFILL_CONTROLLER_URL",
+		"CPA_REFILL_CONTROLLER_READ_TOKEN_FILE",
+		"CPA_REFILL_CONTROLLER_WRITE_TOKEN_FILE",
 		"PANEL_PATH",
 	} {
 		t.Setenv(key, "")

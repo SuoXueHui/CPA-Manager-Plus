@@ -24,6 +24,7 @@ import {
   IconSidebarPlugins,
   IconSidebarProviders,
   IconSidebarQuota,
+  IconSidebarRefill,
   IconSidebarSystem,
   IconSidebarUsage,
 } from '@/components/ui/icons';
@@ -65,6 +66,7 @@ const sidebarIcons: Record<string, ReactNode> = {
   usageAnalytics: <IconSidebarUsage size={SIDEBAR_ICON_SIZE} />,
   codexInspection: <IconSidebarInspection size={SIDEBAR_ICON_SIZE} />,
   monitoring: <IconSidebarMonitor size={SIDEBAR_ICON_SIZE} />,
+  cpaRefill: <IconSidebarRefill size={SIDEBAR_ICON_SIZE} />,
   plugins: <IconSidebarPlugins size={SIDEBAR_ICON_SIZE} />,
   config: <IconSidebarConfig size={SIDEBAR_ICON_SIZE} />,
   logs: <IconSidebarLogs size={SIDEBAR_ICON_SIZE} />,
@@ -529,6 +531,15 @@ export function MainLayout({ routeBase = '', demoMode = false }: MainLayoutProps
         icon: sidebarIcons.monitoring,
       }
     : null;
+  // 自动补号依赖 Manager Server 的受限代理，CPA 轻量面板不能展示这个入口。
+  const cpaRefillNavItem = featureAvailability.managerServiceAvailable && !demoMode
+    ? {
+        path: '/cpa-refill',
+        label: t('nav.cpa_refill'),
+        shortLabel: navShortLabel('nav.cpa_refill', t('nav.cpa_refill')),
+        icon: sidebarIcons.cpaRefill,
+      }
+    : null;
   const operationNavItems: NavItem[] = [
     ...(fileLogsAvailable
       ? [
@@ -564,6 +575,7 @@ export function MainLayout({ routeBase = '', demoMode = false }: MainLayoutProps
       dashboardNavItem,
       ...(usageAnalyticsNavItem ? [usageAnalyticsNavItem] : []),
       ...(monitoringNavItem ? [monitoringNavItem] : []),
+      ...(cpaRefillNavItem ? [cpaRefillNavItem] : []),
     ],
     [
       {

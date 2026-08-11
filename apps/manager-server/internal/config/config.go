@@ -52,6 +52,9 @@ type Config struct {
 	UsageImportDiskQuotaBytes    int64
 	UsageImportMaxSessions       int
 	UsageImportSessionTTL        time.Duration
+	CPARefillControllerURL       string
+	CPARefillReadTokenFile       string
+	CPARefillWriteTokenFile      string
 	QuotaCooldownEnvSet          bool
 	AccountActionsEnvSet         bool
 	AccountActionsAutoEnvSet     bool
@@ -87,6 +90,9 @@ type fileConfig struct {
 	UsageImportDiskQuotaBytes int64    `json:"usageImportDiskQuotaBytes,omitempty"`
 	UsageImportMaxSessions    int      `json:"usageImportMaxSessions,omitempty"`
 	UsageImportTTLMinutes     int      `json:"usageImportSessionTTLMinutes,omitempty"`
+	CPARefillControllerURL    string   `json:"cpaRefillControllerUrl,omitempty"`
+	CPARefillReadTokenFile    string   `json:"cpaRefillReadTokenFile,omitempty"`
+	CPARefillWriteTokenFile   string   `json:"cpaRefillWriteTokenFile,omitempty"`
 }
 
 func Load() (Config, error) {
@@ -174,6 +180,15 @@ func LoadWithOptions(options LoadOptions) (Config, error) {
 			"USAGE_IMPORT_SESSION_TTL_MINUTES",
 			intFallback(cfgFile.UsageImportTTLMinutes, int(DefaultUsageImportSessionTTL/time.Minute)),
 		)) * time.Minute,
+		CPARefillControllerURL: env("CPA_REFILL_CONTROLLER_URL", cfgFile.CPARefillControllerURL),
+		CPARefillReadTokenFile: env(
+			"CPA_REFILL_CONTROLLER_READ_TOKEN_FILE",
+			resolveConfigPath(cfgFile.CPARefillReadTokenFile, cfgDir),
+		),
+		CPARefillWriteTokenFile: env(
+			"CPA_REFILL_CONTROLLER_WRITE_TOKEN_FILE",
+			resolveConfigPath(cfgFile.CPARefillWriteTokenFile, cfgDir),
+		),
 		QuotaCooldownEnvSet:      hasEnv("USAGE_QUOTA_COOLDOWN_ENABLED"),
 		AccountActionsEnvSet:     hasEnv("USAGE_ACCOUNT_ACTIONS_ENABLED"),
 		AccountActionsAutoEnvSet: hasEnv("USAGE_ACCOUNT_ACTIONS_AUTO_DISABLE"),
