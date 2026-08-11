@@ -2,7 +2,8 @@ import { apiClient } from './client';
 
 const READ_TIMEOUT_MS = 5_000;
 const WRITE_TIMEOUT_MS = 10_000;
-const BASE_PATH = '/v0/management/cpa-refill';
+// apiClient 的 baseURL 已包含 /v0/management，这里只保留 Manager 白名单的相对路径。
+const BASE_PATH = '/cpa-refill';
 
 export type CPARefillListResource =
   | 'accounts'
