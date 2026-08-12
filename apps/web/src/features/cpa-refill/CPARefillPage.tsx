@@ -79,7 +79,7 @@ const tabs: Tab[] = [
 ];
 
 const columns: Record<CPARefillListResource, string[]> = {
-  accounts: ['id', 'masked_email', 'status', 'cpa_auth_id', 'source', 'import_status', 'last_request_at'],
+  accounts: ['email', 'status', 'total_tokens', 'cost_micro_usd', 'imported_at', 'expires_at', 'last_request_at'],
   decisions: ['id', 'status', 'current_capacity', 'target_capacity', 'deficit', 'planned_quantity', 'reason', 'created_at'],
   orders: ['id', 'provider', 'status', 'requested_quantity', 'delivered_quantity', 'amount', 'error_code', 'created_at'],
   recoveries: ['id', 'recovery_id', 'account_id', 'provider', 'status', 'attempt_count', 'updated_at'],
@@ -93,15 +93,36 @@ const numberValue = (value: unknown) =>
 const stringValue = (value: unknown) =>
   value === undefined || value === null || value === '' ? '—' : String(value);
 
-const displayValue = (key: string, value: unknown) => {
+// Token 使用完整千分位，便于管理员核对账号累计用量。
+const formatTokenCount = (value: unknown) =>
+  new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(numberValue(value));
+
+// Controller 金额以 micro USD 返回；管理页转换为美元但保留六位精度，避免小额被显示成 0。
+const formatMicroUSD = (value: unknown) => `$${(numberValue(value) / 1_000_000).toFixed(6)}`;
+
+const localizedValue = (key: string, value: unknown, translate: (key: string, options?: Record<string, unknown>) => string) => {
+  const text = String(value);
+  if (key === 'status' || key === 'source' || key === 'import_status' || key === 'level' || key === 'provider') {
+    return translate(`cpa_refill.values.${key}.${text}`, { defaultValue: text });
+  }
+  return text;
+};
+
+const displayValue = (
+  key: string,
+  value: unknown,
+  translate: (key: string, options?: Record<string, unknown>) => string
+) => {
   if (value === undefined || value === null || value === '') return '—';
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'boolean') return value ? translate('common.yes') : translate('common.no');
   if (typeof value === 'object') return JSON.stringify(value);
+  if (key === 'total_tokens') return formatTokenCount(value);
+  if (key === 'cost_micro_usd') return formatMicroUSD(value);
   if (key.endsWith('_at') || key === 'created_at' || key === 'updated_at') {
     const date = new Date(String(value));
     return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
   }
-  return String(value);
+  return localizedValue(key, value, translate);
 };
 
 const actionKey = (prefix: string) => {
@@ -197,7 +218,7 @@ export function CPARefillPage() {
         status: queryFilters.status,
         source: resource === 'accounts' ? queryFilters.source : undefined,
         import_status: resource === 'accounts' ? queryFilters.import_status : undefined,
-        provider: resource === 'accounts' || resource === 'orders' || resource === 'recoveries' ? queryFilters.provider : undefined,
+        provider: resource === 'orders' || resource === 'recoveries' ? queryFilters.provider : undefined,
         level: resource === 'events' ? queryFilters.level : undefined,
         from: toRFC3339(queryFilters.from),
         to: toRFC3339(queryFilters.to),
@@ -361,7 +382,7 @@ export function CPARefillPage() {
         </div>
         <div className={styles.heroActions}>
           <span className={`${styles.statusBadge} ${overview?.status === 'healthy' ? styles.healthy : styles.degraded}`}>
-            <span />{overview?.status || t('cpa_refill.unavailable')}
+            <span />{overview?.status ? localizedValue('status', overview.status, t) : t('cpa_refill.unavailable')}
           </span>
           <Button variant="secondary" size="sm" onClick={() => void loadOverview()}>{t('cpa_refill.refresh')}</Button>
         </div>
@@ -391,7 +412,7 @@ export function CPARefillPage() {
             <div className={styles.dependencyGrid}>
               {(overview?.dependencies || []).map((dependency, index) => (
                 <article key={`${stringValue(dependency.name)}-${index}`}>
-                  <div><strong>{stringValue(dependency.name)}</strong><span className={styles.miniBadge}>{stringValue(dependency.status)}</span></div>
+                  <div><strong>{stringValue(dependency.name)}</strong><span className={styles.miniBadge}>{localizedValue('status', dependency.status, t)}</span></div>
                   <p>{stringValue(dependency.message)}</p>
                 </article>
               ))}
@@ -403,20 +424,21 @@ export function CPARefillPage() {
       {activeTab !== 'overview' && activeTab !== 'policy' && (
         <section className={styles.panel}>
           <form className={styles.filters} onSubmit={(event) => { event.preventDefault(); void loadList(activeTab, false); }}>
-            <input value={filters.q} onChange={(event) => setActiveFilters({ ...filters, q: event.target.value })} placeholder={t('cpa_refill.search_placeholder')} />
+            <input value={filters.q} onChange={(event) => setActiveFilters({ ...filters, q: event.target.value })} placeholder={t(activeTab === 'accounts' ? 'cpa_refill.search_account_placeholder' : 'cpa_refill.search_placeholder')} />
             {statusOptions[activeTab] && <select value={filters.status} onChange={(event) => setActiveFilters({ ...filters, status: event.target.value })}>
               <option value="">{t('cpa_refill.status_placeholder')}</option>
-              {statusOptions[activeTab]?.map((status) => <option key={status} value={status}>{status}</option>)}
+              {statusOptions[activeTab]?.map((status) => <option key={status} value={status}>{localizedValue('status', status, t)}</option>)}
             </select>}
             {activeTab === 'accounts' && <input value={filters.source} onChange={(event) => setActiveFilters({ ...filters, source: event.target.value })} placeholder={t('cpa_refill.source_placeholder')} />}
             {activeTab === 'accounts' && <select value={filters.import_status} onChange={(event) => setActiveFilters({ ...filters, import_status: event.target.value })}>
               <option value="">{t('cpa_refill.import_status_placeholder')}</option>
-              {importStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+              {importStatusOptions.map((status) => <option key={status} value={status}>{localizedValue('import_status', status, t)}</option>)}
             </select>}
-            {(activeTab === 'accounts' || activeTab === 'orders' || activeTab === 'recoveries') && <input value={filters.provider} onChange={(event) => setActiveFilters({ ...filters, provider: event.target.value })} placeholder={t('cpa_refill.provider_placeholder')} />}
+            {activeTab === 'accounts' && <select value="codex" disabled aria-label={t('cpa_refill.account_type')}><option value="codex">Codex</option></select>}
+            {(activeTab === 'orders' || activeTab === 'recoveries') && <input value={filters.provider} onChange={(event) => setActiveFilters({ ...filters, provider: event.target.value })} placeholder={t('cpa_refill.provider_placeholder')} />}
             {activeTab === 'events' && <select value={filters.level} onChange={(event) => setActiveFilters({ ...filters, level: event.target.value })}>
               <option value="">{t('cpa_refill.level_placeholder')}</option>
-              {['info', 'warning', 'error'].map((level) => <option key={level} value={level}>{level}</option>)}
+              {['info', 'warning', 'error'].map((level) => <option key={level} value={level}>{localizedValue('level', level, t)}</option>)}
             </select>}
             <input type="datetime-local" value={filters.from} onChange={(event) => setActiveFilters({ ...filters, from: event.target.value })} aria-label={t('cpa_refill.from_time')} />
             <input type="datetime-local" value={filters.to} onChange={(event) => setActiveFilters({ ...filters, to: event.target.value })} aria-label={t('cpa_refill.to_time')} />
@@ -429,7 +451,7 @@ export function CPARefillPage() {
           </form>
           <div className={styles.tableWrap}>
             <table><thead><tr>{columns[activeTab].map((column) => <th key={column}>{t(`cpa_refill.fields.${column}`, { defaultValue: column })}</th>)}{(activeTab === 'accounts' || activeTab === 'orders') && <th>{t('cpa_refill.operation')}</th>}</tr></thead>
-              <tbody>{items.map((item, index) => <tr key={stringValue(item.id) + index}>{columns[activeTab].map((column) => <td key={column} title={displayValue(column, item[column])}>{displayValue(column, item[column])}</td>)}{(activeTab === 'accounts' || activeTab === 'orders') && <td><button type="button" className={styles.detailButton} onClick={() => void openDetail(item)}>{t('cpa_refill.view_detail')}</button></td>}</tr>)}</tbody>
+              <tbody>{items.map((item, index) => <tr key={stringValue(item.id) + index}>{columns[activeTab].map((column) => <td key={column} title={displayValue(column, item[column], t)}>{displayValue(column, item[column], t)}</td>)}{(activeTab === 'accounts' || activeTab === 'orders') && <td><button type="button" className={styles.detailButton} onClick={() => void openDetail(item)}>{t('cpa_refill.view_detail')}</button></td>}</tr>)}</tbody>
             </table>
             {!listLoading && items.length === 0 && <div className={styles.empty}>{t('cpa_refill.empty')}</div>}
           </div>
@@ -442,7 +464,7 @@ export function CPARefillPage() {
           <article className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>{t('cpa_refill.policy')}</h2><p>{t('cpa_refill.policy_hint')}</p></div></div>
             {policyLoading && !policy ? <div className={styles.center}><LoadingSpinner /></div> : policy && <div className={styles.policyForm}>
-              <label>{t('cpa_refill.desired_mode')}<select value={policy.desired_mode} onChange={(event) => setPolicy({ ...policy, desired_mode: event.target.value })}><option value="observe">observe</option><option value="active">active</option><option value="paused">paused</option></select></label>
+              <label>{t('cpa_refill.desired_mode')}<select value={policy.desired_mode} onChange={(event) => setPolicy({ ...policy, desired_mode: event.target.value })}><option value="observe">{t('cpa_refill.values.mode.observe')}</option><option value="active">{t('cpa_refill.values.mode.active')}</option><option value="paused">{t('cpa_refill.values.mode.paused')}</option></select></label>
               <label className={styles.checkbox}><input type="checkbox" checked={policy.purchase_enabled} onChange={(event) => setPolicy({ ...policy, purchase_enabled: event.target.checked })} />{t('cpa_refill.purchase_enabled')}</label>
               <label className={styles.checkbox}><input type="checkbox" checked={policy.recovery_enabled} onChange={(event) => setPolicy({ ...policy, recovery_enabled: event.target.checked })} />{t('cpa_refill.recovery_enabled')}</label>
               {(['window_minutes', 'target_coverage_seconds', 'max_cycle_quantity', 'order_hard_cap', 'min_order_gap_seconds', 'inventory_probe_seconds'] as const).map((field) => <label key={field}>{t(`cpa_refill.fields.${field}`)}<input type="number" value={policy[field]} onChange={(event) => setPolicy({ ...policy, [field]: Number(event.target.value) })} /></label>)}
@@ -465,7 +487,7 @@ export function CPARefillPage() {
 
       {(selectedDetail || detailLoading) && <aside className={styles.detailPanel} aria-label={t('cpa_refill.account_detail')}>
         <div className={styles.detailHeader}><div><span>{activeTab === 'orders' ? t('cpa_refill.order_detail') : t('cpa_refill.account_detail')}</span><strong>#{stringValue(selectedDetail?.id)}</strong></div><button type="button" onClick={() => { detailRequestIDRef.current += 1; setSelectedDetail(null); setSelectedEvents([]); setSelectedAccountID(0); setEventHasMore(false); }}>×</button></div>
-        {detailLoading ? <div className={styles.center}><LoadingSpinner /></div> : selectedDetail && <><dl>{Object.entries(selectedDetail).filter(([key]) => key !== 'items').map(([key, value]) => <div key={key}><dt>{t(`cpa_refill.fields.${key}`, { defaultValue: key })}</dt><dd>{displayValue(key, value)}</dd></div>)}</dl>{Array.isArray(selectedDetail.items) && <div className={styles.detailEvents}><h3>{t('cpa_refill.delivered_items')}</h3>{selectedDetail.items.map((item, index) => <pre key={index}>{JSON.stringify(item, null, 2)}</pre>)}</div>}{selectedEvents.length > 0 && <div className={styles.detailEvents}><h3>{t('cpa_refill.account_events')}</h3>{selectedEvents.map((event, index) => <article key={index}><strong>{stringValue(event.event_type)}</strong><span>{displayValue('created_at', event.created_at)}</span><small>{stringValue(event.level)}</small></article>)}{eventHasMore && <Button variant="secondary" size="sm" loading={eventLoading} onClick={() => void loadMoreAccountEvents()}>{t('cpa_refill.load_more_events')}</Button>}</div>}</>}
+        {detailLoading ? <div className={styles.center}><LoadingSpinner /></div> : selectedDetail && <><dl>{Object.entries(selectedDetail).filter(([key]) => key !== 'items').map(([key, value]) => <div key={key}><dt>{t(`cpa_refill.fields.${key}`, { defaultValue: key })}</dt><dd>{displayValue(key, value, t)}</dd></div>)}</dl>{Array.isArray(selectedDetail.items) && <div className={styles.detailEvents}><h3>{t('cpa_refill.delivered_items')}</h3>{selectedDetail.items.map((item, index) => <pre key={index}>{JSON.stringify(item, null, 2)}</pre>)}</div>}{selectedEvents.length > 0 && <div className={styles.detailEvents}><h3>{t('cpa_refill.account_events')}</h3>{selectedEvents.map((event, index) => <article key={index}><strong>{stringValue(event.event_type)}</strong><span>{displayValue('created_at', event.created_at, t)}</span><small>{localizedValue('level', event.level, t)}</small></article>)}{eventHasMore && <Button variant="secondary" size="sm" loading={eventLoading} onClick={() => void loadMoreAccountEvents()}>{t('cpa_refill.load_more_events')}</Button>}</div>}</>}
       </aside>}
     </div>
   );

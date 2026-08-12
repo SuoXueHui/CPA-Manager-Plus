@@ -279,13 +279,96 @@
       "max_cycle_quantity": "单周期上限",
       "order_hard_cap": "订单硬上限",
       "min_order_gap_seconds": "最小下单间隔（秒）",
-      "inventory_probe_seconds": "库存探测间隔（秒）"
+      "inventory_probe_seconds": "库存探测间隔（秒）",
+      "email": "账号",
+      "total_tokens": "累计 Token",
+      "cost_micro_usd": "累计金额",
+      "imported_at": "导入时间",
+      "expires_at": "过期时间"
     },
     "provider_placeholder": "供应商，例如 sogouedu",
     "level_placeholder": "事件级别",
     "from_time": "开始时间",
     "to_time": "结束时间",
-    "load_more_events": "加载更多事件"
+    "load_more_events": "加载更多事件",
+    "search_account_placeholder": "搜索完整账号、ID 或 CPA Auth ID",
+    "account_type": "账号类型",
+    "values": {
+      "status": {
+        "healthy": "正常",
+        "degraded": "降级",
+        "available": "可用",
+        "unavailable": "不可用",
+        "delivered": "已交付",
+        "import_pending": "待导入",
+        "importing": "导入中",
+        "active": "正常",
+        "cooldown": "冷却中",
+        "disabled": "已禁用",
+        "recovery_pending": "待恢复",
+        "recovery_importing": "恢复导入中",
+        "import_failed": "导入失败",
+        "retired": "已退役",
+        "observed": "已观察",
+        "no_action": "无需操作",
+        "blocked": "已阻止",
+        "planned": "已计划",
+        "executing": "执行中",
+        "succeeded": "成功",
+        "partial": "部分成功",
+        "failed": "失败",
+        "cancelled": "已取消",
+        "intent_created": "意图已创建",
+        "creating": "创建中",
+        "waiting_inventory": "等待库存",
+        "ready": "就绪",
+        "taking": "取货中",
+        "taken": "已取货",
+        "import_retry": "导入重试",
+        "create_uncertain": "创建结果待确认",
+        "take_uncertain": "取货结果待确认",
+        "manual_review": "人工复核",
+        "paused": "已暂停",
+        "claimable": "可领取",
+        "claiming": "领取中",
+        "claimed": "已领取",
+        "refunded": "已退款",
+        "claim_uncertain": "领取结果待确认",
+        "running": "运行中",
+        "result_uncertain": "结果待确认",
+        "retry_wait": "等待重试",
+        "duplicate": "重复"
+      },
+      "source": {
+        "file": "CPA 文件",
+        "supplier": "供应商",
+        "manual": "人工"
+      },
+      "import_status": {
+        "not_required": "无需导入",
+        "pending": "待导入",
+        "running": "导入中",
+        "result_uncertain": "结果待确认",
+        "retry_wait": "等待重试",
+        "succeeded": "成功",
+        "duplicate": "重复",
+        "failed": "失败"
+      },
+      "level": {
+        "info": "信息",
+        "warning": "警告",
+        "error": "错误"
+      },
+      "provider": {
+        "codex": "Codex",
+        "sogouedu": "搜狗教育"
+      },
+      "mode": {
+        "observe": "观察",
+        "active": "启用",
+        "paused": "暂停"
+      }
+    }
   },
   "account_actions": {
     "eyebrow": "账号异常",

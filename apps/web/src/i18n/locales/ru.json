@@ -279,13 +279,96 @@
       "max_cycle_quantity": "Лимит цикла",
       "order_hard_cap": "Жёсткий лимит заказа",
       "min_order_gap_seconds": "Интервал заказов (секунды)",
-      "inventory_probe_seconds": "Проверка запаса (секунды)"
+      "inventory_probe_seconds": "Проверка запаса (секунды)",
+      "email": "Аккаунт",
+      "total_tokens": "Всего токенов",
+      "cost_micro_usd": "Общая стоимость",
+      "imported_at": "Импортирован",
+      "expires_at": "Истекает"
     },
     "provider_placeholder": "Поставщик, например sogouedu",
     "level_placeholder": "Уровень события",
     "from_time": "Время начала",
     "to_time": "Время окончания",
-    "load_more_events": "Загрузить ещё события"
+    "load_more_events": "Загрузить ещё события",
+    "search_account_placeholder": "Поиск полного аккаунта, ID или CPA Auth ID",
+    "account_type": "Тип аккаунта",
+    "values": {
+      "status": {
+        "healthy": "Исправно",
+        "degraded": "Ограничено",
+        "available": "Доступен",
+        "unavailable": "Недоступен",
+        "delivered": "Доставлен",
+        "import_pending": "Ожидает импорта",
+        "importing": "Импортируется",
+        "active": "Активен",
+        "cooldown": "Ожидание",
+        "disabled": "Отключен",
+        "recovery_pending": "Ожидает восстановления",
+        "recovery_importing": "Импорт восстановления",
+        "import_failed": "Ошибка импорта",
+        "retired": "Выведен",
+        "observed": "Наблюдение",
+        "no_action": "Без действий",
+        "blocked": "Заблокирован",
+        "planned": "Запланирован",
+        "executing": "Выполняется",
+        "succeeded": "Успешно",
+        "partial": "Частично",
+        "failed": "Ошибка",
+        "cancelled": "Отменен",
+        "intent_created": "Намерение создано",
+        "creating": "Создание",
+        "waiting_inventory": "Ожидание запаса",
+        "ready": "Готов",
+        "taking": "Получение",
+        "taken": "Получен",
+        "import_retry": "Повтор импорта",
+        "create_uncertain": "Создание не подтверждено",
+        "take_uncertain": "Получение не подтверждено",
+        "manual_review": "Ручная проверка",
+        "paused": "Приостановлен",
+        "claimable": "Можно получить",
+        "claiming": "Получение",
+        "claimed": "Получен",
+        "refunded": "Возвращен",
+        "claim_uncertain": "Получение не подтверждено",
+        "running": "Выполняется",
+        "result_uncertain": "Результат не подтвержден",
+        "retry_wait": "Ожидание повтора",
+        "duplicate": "Дубликат"
+      },
+      "source": {
+        "file": "Файл CPA",
+        "supplier": "Поставщик",
+        "manual": "Вручную"
+      },
+      "import_status": {
+        "not_required": "Не требуется",
+        "pending": "Ожидает",
+        "running": "Выполняется",
+        "result_uncertain": "Результат не подтвержден",
+        "retry_wait": "Ожидание повтора",
+        "succeeded": "Успешно",
+        "duplicate": "Дубликат",
+        "failed": "Ошибка"
+      },
+      "level": {
+        "info": "Информация",
+        "warning": "Предупреждение",
+        "error": "Ошибка"
+      },
+      "provider": {
+        "codex": "Codex",
+        "sogouedu": "Sogou Education"
+      },
+      "mode": {
+        "observe": "Наблюдение",
+        "active": "Активен",
+        "paused": "Пауза"
+      }
+    }
   },
   "account_actions": {
     "eyebrow": "Проблемы аккаунтов",

@@ -279,13 +279,96 @@
       "max_cycle_quantity": "Cycle Limit",
       "order_hard_cap": "Order Hard Cap",
       "min_order_gap_seconds": "Minimum Order Gap (seconds)",
-      "inventory_probe_seconds": "Inventory Probe (seconds)"
+      "inventory_probe_seconds": "Inventory Probe (seconds)",
+      "email": "Account",
+      "total_tokens": "Total Tokens",
+      "cost_micro_usd": "Total Cost",
+      "imported_at": "Imported At",
+      "expires_at": "Expires At"
     },
     "provider_placeholder": "Provider, e.g. sogouedu",
     "level_placeholder": "Event level",
     "from_time": "Start time",
     "to_time": "End time",
-    "load_more_events": "Load more events"
+    "load_more_events": "Load more events",
+    "search_account_placeholder": "Search full account, ID or CPA Auth ID",
+    "account_type": "Account type",
+    "values": {
+      "status": {
+        "healthy": "Healthy",
+        "degraded": "Degraded",
+        "available": "Available",
+        "unavailable": "Unavailable",
+        "delivered": "Delivered",
+        "import_pending": "Import pending",
+        "importing": "Importing",
+        "active": "Active",
+        "cooldown": "Cooldown",
+        "disabled": "Disabled",
+        "recovery_pending": "Recovery pending",
+        "recovery_importing": "Recovery importing",
+        "import_failed": "Import failed",
+        "retired": "Retired",
+        "observed": "Observed",
+        "no_action": "No action",
+        "blocked": "Blocked",
+        "planned": "Planned",
+        "executing": "Executing",
+        "succeeded": "Succeeded",
+        "partial": "Partial",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "intent_created": "Intent created",
+        "creating": "Creating",
+        "waiting_inventory": "Waiting inventory",
+        "ready": "Ready",
+        "taking": "Taking",
+        "taken": "Taken",
+        "import_retry": "Import retry",
+        "create_uncertain": "Create uncertain",
+        "take_uncertain": "Take uncertain",
+        "manual_review": "Manual review",
+        "paused": "Paused",
+        "claimable": "Claimable",
+        "claiming": "Claiming",
+        "claimed": "Claimed",
+        "refunded": "Refunded",
+        "claim_uncertain": "Claim uncertain",
+        "running": "Running",
+        "result_uncertain": "Result uncertain",
+        "retry_wait": "Retry wait",
+        "duplicate": "Duplicate"
+      },
+      "source": {
+        "file": "CPA file",
+        "supplier": "Supplier",
+        "manual": "Manual"
+      },
+      "import_status": {
+        "not_required": "Not required",
+        "pending": "Pending",
+        "running": "Running",
+        "result_uncertain": "Result uncertain",
+        "retry_wait": "Retry wait",
+        "succeeded": "Succeeded",
+        "duplicate": "Duplicate",
+        "failed": "Failed"
+      },
+      "level": {
+        "info": "Info",
+        "warning": "Warning",
+        "error": "Error"
+      },
+      "provider": {
+        "codex": "Codex",
+        "sogouedu": "Sogou Education"
+      },
+      "mode": {
+        "observe": "Observe",
+        "active": "Active",
+        "paused": "Paused"
+      }
+    }
   },
   "account_actions": {
     "eyebrow": "Account issues",
