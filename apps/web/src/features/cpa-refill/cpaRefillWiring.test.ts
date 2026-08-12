@@ -49,6 +49,18 @@ describe('CPA refill console wiring', () => {
     expect(pageSource).toContain('value="codex"');
   });
 
+  it('renders account details with the shared modal drawer and resilient long-field layout', () => {
+    expect(pageSource).toContain("import { Drawer } from '@/components/ui/Drawer'");
+    expect(pageSource).toContain('<Drawer');
+    expect(pageSource).toContain('open={Boolean(selectedDetail) || detailLoading}');
+    expect(pageSource).toContain("setDetailKind(detailResource)");
+    expect(pageSource).toContain("detailKind === 'orders'");
+    expect(pageSource).toContain('className={styles.detailDrawer}');
+    expect(pageSource).toContain('className={styles.detailList}');
+    expect(pageSource).toContain('className={styles.detailRow}');
+    expect(pageSource).not.toContain('<aside className={styles.detailPanel}');
+  });
+
   it('ships navigation and page labels in every supported locale', () => {
     for (const locale of [en, ru, zhCN, zhTW]) {
       expect(locale.nav.cpa_refill).toBeTruthy();

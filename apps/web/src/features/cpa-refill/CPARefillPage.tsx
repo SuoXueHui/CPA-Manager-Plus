@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
+import { Drawer } from '@/components/ui/Drawer';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import {
   cpaRefillApi,
@@ -152,6 +153,7 @@ export function CPARefillPage() {
   const [eventHasMore, setEventHasMore] = useState(false);
   const [eventLoading, setEventLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailKind, setDetailKind] = useState<'accounts' | 'orders'>('accounts');
   const [policy, setPolicy] = useState<CPARefillPolicy | null>(null);
   const [policyLoading, setPolicyLoading] = useState(false);
   const [manualQuantity, setManualQuantity] = useState(1);
@@ -274,6 +276,7 @@ export function CPARefillPage() {
     const id = numberValue(item.id);
     if (!id || (activeTab !== 'accounts' && activeTab !== 'orders')) return;
     const detailResource = activeTab;
+    setDetailKind(detailResource);
     const requestID = ++detailRequestIDRef.current;
     setDetailLoading(true);
     try {
@@ -300,6 +303,17 @@ export function CPARefillPage() {
     } finally {
       if (requestID === detailRequestIDRef.current) setDetailLoading(false);
     }
+  };
+
+  // 抽屉的所有关闭入口共用同一清理逻辑，避免请求回包后重新打开已关闭的详情。
+  const closeDetail = () => {
+    detailRequestIDRef.current += 1;
+    setSelectedDetail(null);
+    setSelectedEvents([]);
+    setSelectedAccountID(0);
+    setEventNextCursor('');
+    setEventHasMore(false);
+    setDetailLoading(false);
   };
 
   const loadMoreAccountEvents = async () => {
@@ -485,10 +499,65 @@ export function CPARefillPage() {
         </section>
       )}
 
-      {(selectedDetail || detailLoading) && <aside className={styles.detailPanel} aria-label={t('cpa_refill.account_detail')}>
-        <div className={styles.detailHeader}><div><span>{activeTab === 'orders' ? t('cpa_refill.order_detail') : t('cpa_refill.account_detail')}</span><strong>#{stringValue(selectedDetail?.id)}</strong></div><button type="button" onClick={() => { detailRequestIDRef.current += 1; setSelectedDetail(null); setSelectedEvents([]); setSelectedAccountID(0); setEventHasMore(false); }}>×</button></div>
-        {detailLoading ? <div className={styles.center}><LoadingSpinner /></div> : selectedDetail && <><dl>{Object.entries(selectedDetail).filter(([key]) => key !== 'items').map(([key, value]) => <div key={key}><dt>{t(`cpa_refill.fields.${key}`, { defaultValue: key })}</dt><dd>{displayValue(key, value, t)}</dd></div>)}</dl>{Array.isArray(selectedDetail.items) && <div className={styles.detailEvents}><h3>{t('cpa_refill.delivered_items')}</h3>{selectedDetail.items.map((item, index) => <pre key={index}>{JSON.stringify(item, null, 2)}</pre>)}</div>}{selectedEvents.length > 0 && <div className={styles.detailEvents}><h3>{t('cpa_refill.account_events')}</h3>{selectedEvents.map((event, index) => <article key={index}><strong>{stringValue(event.event_type)}</strong><span>{displayValue('created_at', event.created_at, t)}</span><small>{localizedValue('level', event.level, t)}</small></article>)}{eventHasMore && <Button variant="secondary" size="sm" loading={eventLoading} onClick={() => void loadMoreAccountEvents()}>{t('cpa_refill.load_more_events')}</Button>}</div>}</>}
-      </aside>}
+      <Drawer
+        open={Boolean(selectedDetail) || detailLoading}
+        onClose={closeDetail}
+        width={560}
+        className={styles.detailDrawer}
+        title={
+          <div className={styles.detailTitle}>
+            <span>{detailKind === 'orders' ? t('cpa_refill.order_detail') : t('cpa_refill.account_detail')}</span>
+            <strong>#{stringValue(selectedDetail?.id)}</strong>
+          </div>
+        }
+      >
+        {detailLoading ? (
+          <div className={styles.center}><LoadingSpinner /></div>
+        ) : selectedDetail ? (
+          <div className={styles.detailContent}>
+            <dl className={styles.detailList}>
+              {Object.entries(selectedDetail)
+                .filter(([key]) => key !== 'items')
+                .map(([key, value]) => (
+                  <div className={styles.detailRow} key={key}>
+                    <dt>{t(`cpa_refill.fields.${key}`, { defaultValue: key })}</dt>
+                    <dd title={displayValue(key, value, t)}>{displayValue(key, value, t)}</dd>
+                  </div>
+                ))}
+            </dl>
+            {Array.isArray(selectedDetail.items) && (
+              <section className={styles.detailEvents}>
+                <h3>{t('cpa_refill.delivered_items')}</h3>
+                {selectedDetail.items.map((item, index) => (
+                  <pre key={index}>{JSON.stringify(item, null, 2)}</pre>
+                ))}
+              </section>
+            )}
+            {selectedEvents.length > 0 && (
+              <section className={styles.detailEvents}>
+                <h3>{t('cpa_refill.account_events')}</h3>
+                {selectedEvents.map((event, index) => (
+                  <article key={index}>
+                    <strong>{stringValue(event.event_type)}</strong>
+                    <span>{displayValue('created_at', event.created_at, t)}</span>
+                    <small>{localizedValue('level', event.level, t)}</small>
+                  </article>
+                ))}
+                {eventHasMore && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={eventLoading}
+                    onClick={() => void loadMoreAccountEvents()}
+                  >
+                    {t('cpa_refill.load_more_events')}
+                  </Button>
+                )}
+              </section>
+            )}
+          </div>
+        ) : null}
+      </Drawer>
     </div>
   );
 }
