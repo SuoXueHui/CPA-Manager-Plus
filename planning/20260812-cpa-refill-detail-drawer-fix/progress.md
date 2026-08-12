@@ -14,3 +14,6 @@
 - 已补充详情类型快照 `detailKind`，防止抽屉打开期间切换页面标签造成标题错乱。
 - 新鲜验证通过：全量前端 139 文件/1386 测试、type-check、lint、生产 build、demo isolation、内嵌 management.html 与构建产物一致、git diff check。
 - 本地浏览器只读核对生产 bundle：包含共享 Drawer 模态遮罩/动画、长字段换行与移动端单列样式；本地无 Manager 登录态，未伪造密钥进行 API 详情交互。
+- 生产 build 会因 commit hash 改变 bundle 常量；已在最终 commit 后重新 build、同步内嵌 management.html，并确认两个文件 SHA256 完全一致。
+- 已检查项目 AGENTS.md：现有通用 Drawer/内嵌产物规则已覆盖本次经验，无需修改。
+- 已检查 Obsidian 项目知识目录；本次“自制 fixed aside 应复用共享 Drawer”的排障经验值得在任务完成后追加。
