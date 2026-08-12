@@ -49,6 +49,34 @@ describe('CPA refill console wiring', () => {
     expect(pageSource).toContain('value="codex"');
   });
 
+  it('uses the shared Select and Chinese decision presentation', () => {
+    expect(pageSource).toContain("import { Select } from '@/components/ui/Select'");
+    expect(pageSource).not.toContain('<select value={filters.status}');
+    expect(pageSource).not.toContain('<select value={filters.import_status}');
+    expect(pageSource).not.toContain('<select value={filters.level}');
+    expect(pageSource).not.toContain('<select value={policy.desired_mode}');
+    expect(pageSource).toContain("key === 'reason'");
+    expect(pageSource).toContain("key === 'event_type'");
+    expect(pageSource).toContain("if (key === 'amount') return formatFen(value)");
+    expect(zhCN.cpa_refill.fields.current_capacity).toBe('当前容量');
+    expect(zhCN.cpa_refill.fields.target_capacity).toBe('目标容量');
+    expect(zhCN.cpa_refill.fields.deficit).toBe('容量缺口');
+    expect(zhCN.cpa_refill.fields.expires_at).toBe('订阅到期时间');
+    expect(zhCN.cpa_refill.values.reason.source_incomplete).toBeTruthy();
+  });
+
+  it('renders account details with the shared modal drawer and resilient long-field layout', () => {
+    expect(pageSource).toContain("import { Drawer } from '@/components/ui/Drawer'");
+    expect(pageSource).toContain('<Drawer');
+    expect(pageSource).toContain('open={Boolean(selectedDetail) || detailLoading}');
+    expect(pageSource).toContain("setDetailKind(detailResource)");
+    expect(pageSource).toContain("detailKind === 'orders'");
+    expect(pageSource).toContain('className={styles.detailDrawer}');
+    expect(pageSource).toContain('className={styles.detailList}');
+    expect(pageSource).toContain('className={styles.detailRow}');
+    expect(pageSource).not.toContain('<aside className={styles.detailPanel}');
+  });
+
   it('ships navigation and page labels in every supported locale', () => {
     for (const locale of [en, ru, zhCN, zhTW]) {
       expect(locale.nav.cpa_refill).toBeTruthy();
