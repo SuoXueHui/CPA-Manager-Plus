@@ -26,8 +26,11 @@
 .dependencyGrid article > div { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
 .dependencyGrid p { color: var(--text-secondary); margin: 10px 0 0; overflow-wrap: anywhere; }
 .filters { display: grid; grid-template-columns: minmax(180px, 1.4fr) repeat(3, minmax(120px, .8fr)) auto auto; gap: 10px; padding: 16px; border-bottom: 1px solid var(--border-subtle); }
-.filters input, .filters select, .policyForm input, .policyForm select, .manualAction input { min-width: 0; height: 38px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-subtle); color: var(--text-primary); padding: 0 11px; outline: none; }
-.filters input:focus, .filters select:focus, .policyForm input:focus, .policyForm select:focus { border-color: #0ca678; box-shadow: 0 0 0 3px color-mix(in srgb, #0ca678 12%, transparent); }
+.filters input, .policyForm input, .manualAction input { min-width: 0; height: 38px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-subtle); color: var(--text-primary); padding: 0 11px; outline: none; }
+.filters input:focus, .policyForm input:focus { border-color: #0ca678; box-shadow: 0 0 0 3px color-mix(in srgb, #0ca678 12%, transparent); }
+.filterSelectTrigger, .policySelectTrigger { height: 38px; border-radius: 10px; border-color: var(--border-subtle); background: var(--surface-subtle); padding-inline: 11px; }
+.filterSelectTrigger:hover, .policySelectTrigger:hover { border-color: color-mix(in srgb, #0ca678 44%, var(--border-subtle)); background: color-mix(in srgb, #0ca678 4%, var(--surface-subtle)); }
+.filterSelectTrigger:focus, .policySelectTrigger:focus { border-color: #0ca678; box-shadow: 0 0 0 3px color-mix(in srgb, #0ca678 12%, transparent); }
 .tableWrap { width: 100%; overflow-x: auto; }
 .tableWrap table { width: 100%; border-collapse: collapse; min-width: 860px; }
 .tableWrap th { text-align: left; padding: 11px 14px; background: var(--surface-subtle); color: var(--text-secondary); font-size: 12px; font-weight: 750; }

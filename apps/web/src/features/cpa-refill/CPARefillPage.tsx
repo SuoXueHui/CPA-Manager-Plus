@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Drawer } from '@/components/ui/Drawer';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Select } from '@/components/ui/Select';
+import type { SelectOption } from '@/components/ui/Select';
 import {
   cpaRefillApi,
   type CPARefillAction,
@@ -59,6 +61,8 @@ const importStatusOptions = [
   'not_required', 'pending', 'running', 'result_uncertain', 'retry_wait', 'succeeded', 'duplicate', 'failed',
 ];
 
+const eventLevelOptions = ['info', 'warning', 'error'];
+
 const isListResource = (tab: Tab): tab is CPARefillListResource =>
   listResources.includes(tab as CPARefillListResource);
 
@@ -101,9 +105,16 @@ const formatTokenCount = (value: unknown) =>
 // Controller 金额以 micro USD 返回；管理页转换为美元但保留六位精度，避免小额被显示成 0。
 const formatMicroUSD = (value: unknown) => `$${(numberValue(value) / 1_000_000).toFixed(6)}`;
 
+// 供应商订单金额以人民币分返回，与容量/账号的 micro USD 不是同一单位。
+const formatFen = (value: unknown) => `¥${(numberValue(value) / 100).toFixed(2)}`;
+
+// 容量字段与账号累计金额使用同一 micro USD 单位，避免决策页直接展示难读的大整数。
+const moneyFields = new Set(['current_capacity', 'target_capacity', 'deficit']);
+
 const localizedValue = (key: string, value: unknown, translate: (key: string, options?: Record<string, unknown>) => string) => {
   const text = String(value);
-  if (key === 'status' || key === 'source' || key === 'import_status' || key === 'level' || key === 'provider') {
+  if (key === 'status' || key === 'source' || key === 'import_status' || key === 'level' || key === 'provider' ||
+      key === 'reason' || key === 'event_type' || key === 'entity' || key === 'error_code') {
     return translate(`cpa_refill.values.${key}.${text}`, { defaultValue: text });
   }
   return text;
@@ -119,12 +130,20 @@ const displayValue = (
   if (typeof value === 'object') return JSON.stringify(value);
   if (key === 'total_tokens') return formatTokenCount(value);
   if (key === 'cost_micro_usd') return formatMicroUSD(value);
+  if (moneyFields.has(key)) return formatMicroUSD(value);
+  if (key === 'amount') return formatFen(value);
   if (key.endsWith('_at') || key === 'created_at' || key === 'updated_at') {
     const date = new Date(String(value));
     return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
   }
   return localizedValue(key, value, translate);
 };
+
+const translatedOptions = (
+  values: string[],
+  key: 'status' | 'import_status' | 'level',
+  translate: (key: string, options?: Record<string, unknown>) => string
+): SelectOption[] => values.map((value) => ({ value, label: localizedValue(key, value, translate) }));
 
 const actionKey = (prefix: string) => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -164,6 +183,12 @@ export function CPARefillPage() {
   const pendingWriteKeysRef = useRef(new Map<string, string>());
 
   const filters = isListResource(activeTab) ? filtersByResource[activeTab] : emptyFilters();
+  const activeStatusOptions = isListResource(activeTab) ? statusOptions[activeTab] : undefined;
+  const statusSelectOptions = activeStatusOptions
+    ? translatedOptions(activeStatusOptions, 'status', t)
+    : [];
+  const importSelectOptions = translatedOptions(importStatusOptions, 'import_status', t);
+  const levelSelectOptions = translatedOptions(eventLevelOptions, 'level', t);
   const setActiveFilters = (next: ListFilters) => {
     if (!isListResource(activeTab)) return;
     setFiltersByResource((current) => ({ ...current, [activeTab]: next }));
@@ -375,8 +400,8 @@ export function CPARefillPage() {
     const usage = overview?.usage || {};
     return [
       { label: t('cpa_refill.available_accounts'), value: overview?.available_accounts ?? 0, meta: overview?.mode || '—' },
-      { label: t('cpa_refill.capacity_deficit'), value: stringValue(capacity.deficit), meta: `${t('cpa_refill.target')}: ${stringValue(capacity.target)}` },
-      { label: t('cpa_refill.planned_quantity'), value: stringValue(decision.planned_quantity), meta: stringValue(decision.reason) },
+      { label: t('cpa_refill.capacity_deficit'), value: displayValue('deficit', capacity.deficit, t), meta: `${t('cpa_refill.target')}: ${displayValue('target_capacity', capacity.target, t)}` },
+      { label: t('cpa_refill.planned_quantity'), value: stringValue(decision.planned_quantity), meta: localizedValue('reason', decision.reason, t) },
       { label: t('cpa_refill.supplier_inventory'), value: stringValue(supplier.inventory), meta: stringValue(supplier.circuit_state) },
       { label: t('cpa_refill.queue_depth'), value: `${stringValue(usage.queue_depth)} / ${stringValue(usage.queue_capacity)}`, meta: stringValue(usage.gap_code) },
     ];
@@ -439,21 +464,12 @@ export function CPARefillPage() {
         <section className={styles.panel}>
           <form className={styles.filters} onSubmit={(event) => { event.preventDefault(); void loadList(activeTab, false); }}>
             <input value={filters.q} onChange={(event) => setActiveFilters({ ...filters, q: event.target.value })} placeholder={t(activeTab === 'accounts' ? 'cpa_refill.search_account_placeholder' : 'cpa_refill.search_placeholder')} />
-            {statusOptions[activeTab] && <select value={filters.status} onChange={(event) => setActiveFilters({ ...filters, status: event.target.value })}>
-              <option value="">{t('cpa_refill.status_placeholder')}</option>
-              {statusOptions[activeTab]?.map((status) => <option key={status} value={status}>{localizedValue('status', status, t)}</option>)}
-            </select>}
+            {statusOptions[activeTab] && <Select value={filters.status} options={statusSelectOptions} onChange={(status) => setActiveFilters({ ...filters, status })} placeholder={t('cpa_refill.status_placeholder')} triggerClassName={styles.filterSelectTrigger} />}
             {activeTab === 'accounts' && <input value={filters.source} onChange={(event) => setActiveFilters({ ...filters, source: event.target.value })} placeholder={t('cpa_refill.source_placeholder')} />}
-            {activeTab === 'accounts' && <select value={filters.import_status} onChange={(event) => setActiveFilters({ ...filters, import_status: event.target.value })}>
-              <option value="">{t('cpa_refill.import_status_placeholder')}</option>
-              {importStatusOptions.map((status) => <option key={status} value={status}>{localizedValue('import_status', status, t)}</option>)}
-            </select>}
-            {activeTab === 'accounts' && <select value="codex" disabled aria-label={t('cpa_refill.account_type')}><option value="codex">Codex</option></select>}
+            {activeTab === 'accounts' && <Select value={filters.import_status} options={importSelectOptions} onChange={(import_status) => setActiveFilters({ ...filters, import_status })} placeholder={t('cpa_refill.import_status_placeholder')} triggerClassName={styles.filterSelectTrigger} />}
+            {activeTab === 'accounts' && <Select value="codex" options={[{ value: 'codex', label: 'Codex' }]} onChange={() => undefined} disabled ariaLabel={t('cpa_refill.account_type')} triggerClassName={styles.filterSelectTrigger} />}
             {(activeTab === 'orders' || activeTab === 'recoveries') && <input value={filters.provider} onChange={(event) => setActiveFilters({ ...filters, provider: event.target.value })} placeholder={t('cpa_refill.provider_placeholder')} />}
-            {activeTab === 'events' && <select value={filters.level} onChange={(event) => setActiveFilters({ ...filters, level: event.target.value })}>
-              <option value="">{t('cpa_refill.level_placeholder')}</option>
-              {['info', 'warning', 'error'].map((level) => <option key={level} value={level}>{localizedValue('level', level, t)}</option>)}
-            </select>}
+            {activeTab === 'events' && <Select value={filters.level} options={levelSelectOptions} onChange={(level) => setActiveFilters({ ...filters, level })} placeholder={t('cpa_refill.level_placeholder')} triggerClassName={styles.filterSelectTrigger} />}
             <input type="datetime-local" value={filters.from} onChange={(event) => setActiveFilters({ ...filters, from: event.target.value })} aria-label={t('cpa_refill.from_time')} />
             <input type="datetime-local" value={filters.to} onChange={(event) => setActiveFilters({ ...filters, to: event.target.value })} aria-label={t('cpa_refill.to_time')} />
             <Button type="submit" size="sm" loading={listLoading}>{t('cpa_refill.search')}</Button>
@@ -478,7 +494,7 @@ export function CPARefillPage() {
           <article className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>{t('cpa_refill.policy')}</h2><p>{t('cpa_refill.policy_hint')}</p></div></div>
             {policyLoading && !policy ? <div className={styles.center}><LoadingSpinner /></div> : policy && <div className={styles.policyForm}>
-              <label>{t('cpa_refill.desired_mode')}<select value={policy.desired_mode} onChange={(event) => setPolicy({ ...policy, desired_mode: event.target.value })}><option value="observe">{t('cpa_refill.values.mode.observe')}</option><option value="active">{t('cpa_refill.values.mode.active')}</option><option value="paused">{t('cpa_refill.values.mode.paused')}</option></select></label>
+              <label>{t('cpa_refill.desired_mode')}<Select value={policy.desired_mode} options={['observe', 'active', 'paused'].map((value) => ({ value, label: t(`cpa_refill.values.mode.${value}`) }))} onChange={(desired_mode) => setPolicy({ ...policy, desired_mode })} triggerClassName={styles.policySelectTrigger} /></label>
               <label className={styles.checkbox}><input type="checkbox" checked={policy.purchase_enabled} onChange={(event) => setPolicy({ ...policy, purchase_enabled: event.target.checked })} />{t('cpa_refill.purchase_enabled')}</label>
               <label className={styles.checkbox}><input type="checkbox" checked={policy.recovery_enabled} onChange={(event) => setPolicy({ ...policy, recovery_enabled: event.target.checked })} />{t('cpa_refill.recovery_enabled')}</label>
               {(['window_minutes', 'target_coverage_seconds', 'max_cycle_quantity', 'order_hard_cap', 'min_order_gap_seconds', 'inventory_probe_seconds'] as const).map((field) => <label key={field}>{t(`cpa_refill.fields.${field}`)}<input type="number" value={policy[field]} onChange={(event) => setPolicy({ ...policy, [field]: Number(event.target.value) })} /></label>)}
@@ -538,7 +554,7 @@ export function CPARefillPage() {
                 <h3>{t('cpa_refill.account_events')}</h3>
                 {selectedEvents.map((event, index) => (
                   <article key={index}>
-                    <strong>{stringValue(event.event_type)}</strong>
+                    <strong>{localizedValue('event_type', event.event_type, t)}</strong>
                     <span>{displayValue('created_at', event.created_at, t)}</span>
                     <small>{localizedValue('level', event.level, t)}</small>
                   </article>
