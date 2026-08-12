@@ -8,3 +8,5 @@
 - CPA auth JSON 含 `expired` 字段，现有 auth-files API 没有直接返回它；可从 Codex `id_token.chatgpt_subscription_active_until` 或安全白名单字段补充过期时间，但必须避免下发 `id_token` 本身。
 - 现有前端状态、模式、依赖信息和布尔值仍显示大量英文；需要在展示层做中文 label/value 映射，而非改 Controller 内部协议枚举。
 - 采用两个独立分支：Manager `/Users/suo/.config/superpowers/worktrees/CPA-Manager-Plus/cpa-refill-codex-account-details-20260812`；Controller `/Users/suo/.config/superpowers/worktrees/cpa-refill-controller/codex-account-details-20260812`。
+- 发布前复核确认：此前 `f76abdf6` 属于 CLIProxyAPIPlus 的独立页面，不是线上真实 CPA Manager Plus React 管理台；线上真实 Manager 分支 `944c0eb8` 只有设计文档，页面仍使用 `masked_email` 与英文状态值。
+- Controller 最新独立 review 提出的 PostgreSQL RETURNING、历史 provider 归一化、Codex-only 容量与过滤顺序问题，已在当前 `20f0aec` 提交中修复并有测试覆盖。

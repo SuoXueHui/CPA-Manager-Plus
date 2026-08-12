@@ -279,13 +279,96 @@
       "max_cycle_quantity": "單週期上限",
       "order_hard_cap": "訂單硬上限",
       "min_order_gap_seconds": "最小下單間隔（秒）",
-      "inventory_probe_seconds": "庫存探測間隔（秒）"
+      "inventory_probe_seconds": "庫存探測間隔（秒）",
+      "email": "帳號",
+      "total_tokens": "累計 Token",
+      "cost_micro_usd": "累計金額",
+      "imported_at": "匯入時間",
+      "expires_at": "到期時間"
     },
     "provider_placeholder": "供應商，例如 sogouedu",
     "level_placeholder": "事件級別",
     "from_time": "開始時間",
     "to_time": "結束時間",
-    "load_more_events": "載入更多事件"
+    "load_more_events": "載入更多事件",
+    "search_account_placeholder": "搜尋完整帳號、ID 或 CPA Auth ID",
+    "account_type": "帳號類型",
+    "values": {
+      "status": {
+        "healthy": "正常",
+        "degraded": "降級",
+        "available": "可用",
+        "unavailable": "不可用",
+        "delivered": "已交付",
+        "import_pending": "待匯入",
+        "importing": "匯入中",
+        "active": "正常",
+        "cooldown": "冷卻中",
+        "disabled": "已停用",
+        "recovery_pending": "待恢復",
+        "recovery_importing": "恢復匯入中",
+        "import_failed": "匯入失敗",
+        "retired": "已退役",
+        "observed": "已觀察",
+        "no_action": "無需操作",
+        "blocked": "已阻止",
+        "planned": "已計畫",
+        "executing": "執行中",
+        "succeeded": "成功",
+        "partial": "部分成功",
+        "failed": "失敗",
+        "cancelled": "已取消",
+        "intent_created": "意圖已建立",
+        "creating": "建立中",
+        "waiting_inventory": "等待庫存",
+        "ready": "就緒",
+        "taking": "取貨中",
+        "taken": "已取貨",
+        "import_retry": "匯入重試",
+        "create_uncertain": "建立結果待確認",
+        "take_uncertain": "取貨結果待確認",
+        "manual_review": "人工覆核",
+        "paused": "已暫停",
+        "claimable": "可領取",
+        "claiming": "領取中",
+        "claimed": "已領取",
+        "refunded": "已退款",
+        "claim_uncertain": "領取結果待確認",
+        "running": "執行中",
+        "result_uncertain": "結果待確認",
+        "retry_wait": "等待重試",
+        "duplicate": "重複"
+      },
+      "source": {
+        "file": "CPA 檔案",
+        "supplier": "供應商",
+        "manual": "人工"
+      },
+      "import_status": {
+        "not_required": "無需匯入",
+        "pending": "待匯入",
+        "running": "匯入中",
+        "result_uncertain": "結果待確認",
+        "retry_wait": "等待重試",
+        "succeeded": "成功",
+        "duplicate": "重複",
+        "failed": "失敗"
+      },
+      "level": {
+        "info": "資訊",
+        "warning": "警告",
+        "error": "錯誤"
+      },
+      "provider": {
+        "codex": "Codex",
+        "sogouedu": "搜狗教育"
+      },
+      "mode": {
+        "observe": "觀察",
+        "active": "啟用",
+        "paused": "暫停"
+      }
+    }
   },
   "account_actions": {
     "eyebrow": "帳號異常",
