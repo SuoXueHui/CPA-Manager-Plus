@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -17,17 +18,24 @@ import (
 )
 
 type Status struct {
-	Collector      string `json:"collector"`
-	Upstream       string `json:"upstream"`
-	Mode           string `json:"mode"`
-	Transport      string `json:"transport"`
-	Queue          string `json:"queue"`
-	LastConsumedAt int64  `json:"lastConsumedAt"`
-	LastInsertedAt int64  `json:"lastInsertedAt"`
-	TotalInserted  int64  `json:"totalInserted"`
-	TotalSkipped   int64  `json:"totalSkipped"`
-	DeadLetters    int64  `json:"deadLetters"`
-	LastError      string `json:"lastError,omitempty"`
+	Collector          string  `json:"collector"`
+	Upstream           string  `json:"upstream"`
+	Mode               string  `json:"mode"`
+	Transport          string  `json:"transport"`
+	Queue              string  `json:"queue"`
+	LastConsumedAt     int64   `json:"lastConsumedAt"`
+	LastInsertedAt     int64   `json:"lastInsertedAt"`
+	LastClaimAt        int64   `json:"lastClaimAt"`
+	LastCommitAt       int64   `json:"lastCommitAt"`
+	TotalInserted      int64   `json:"totalInserted"`
+	TotalSkipped       int64   `json:"totalSkipped"`
+	TotalClaimed       int64   `json:"totalClaimed"`
+	TotalCommitted     int64   `json:"totalCommitted"`
+	TotalDuplicates    int64   `json:"totalDuplicates"`
+	TotalAckFailures   int64   `json:"totalAckFailures"`
+	DeadLetters        int64   `json:"deadLetters"`
+	EndToEndLagSeconds float64 `json:"endToEndLagSeconds"`
+	LastError          string  `json:"lastError,omitempty"`
 }
 
 type RuntimeConfig struct {
@@ -343,6 +351,7 @@ func (m *Manager) runRESP(ctx context.Context, cfg RuntimeConfig) {
 func (m *Manager) consumeHTTP(ctx context.Context, cfg RuntimeConfig, client *httpqueue.Client) error {
 	ticker := time.NewTicker(m.pollInterval(cfg))
 	defer ticker.Stop()
+	claimSupported := true
 
 	for {
 		if ctx.Err() != nil {
@@ -353,22 +362,92 @@ func (m *Manager) consumeHTTP(ctx context.Context, cfg RuntimeConfig, client *ht
 			status.Transport = "http"
 			status.LastError = ""
 		})
-		items, err := client.Pop(ctx, m.batchSize(cfg))
-		if err != nil {
-			return err
-		}
-		if len(items) == 0 {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-ticker.C:
+		if claimSupported {
+			// Fall back only when the producer explicitly reports that claim/ack is unavailable.
+			// Other failures must keep the lease protocol non-destructive.
+			hadItems, err := m.consumeHTTPClaimBatch(ctx, cfg, client)
+			if errors.Is(err, httpqueue.ErrUnsupported) {
+				claimSupported = false
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if hadItems {
+				continue
+			}
+		} else {
+			items, err := client.Pop(ctx, m.batchSize(cfg))
+			if err != nil {
+				return err
+			}
+			if len(items) > 0 {
+				if err := m.processItems(ctx, cfg, items); err != nil {
+					return err
+				}
 				continue
 			}
 		}
-		if err := m.processItems(ctx, cfg, items); err != nil {
-			return err
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
 		}
 	}
+}
+
+func (m *Manager) consumeHTTPBatch(ctx context.Context, cfg RuntimeConfig, client *httpqueue.Client) error {
+	_, err := m.consumeHTTPClaimBatch(ctx, cfg, client)
+	return err
+}
+
+func (m *Manager) consumeHTTPClaimBatch(ctx context.Context, cfg RuntimeConfig, client *httpqueue.Client) (bool, error) {
+	claim, err := client.Claim(ctx, m.batchSize(cfg), 30)
+	if err != nil {
+		return false, err
+	}
+	if len(claim.Items) == 0 {
+		return false, nil
+	}
+	nowMS := time.Now().UnixMilli()
+	m.setStatus(func(status *Status) {
+		status.LastConsumedAt = nowMS
+		status.LastClaimAt = nowMS
+		status.TotalClaimed += int64(len(claim.Items))
+	})
+	items := make([]string, 0, len(claim.Items))
+	deliveryIDs := make([]string, 0, len(claim.Items))
+	for _, item := range claim.Items {
+		items = append(items, item.Payload)
+		deliveryIDs = append(deliveryIDs, item.DeliveryID)
+	}
+	result, err := m.processItemsResult(ctx, cfg, items)
+	if err != nil {
+		return true, err
+	}
+	// SQLite commit and dead-letter persistence must complete before acknowledgement.
+	// Ack failures are safe because event hashes make a lease redelivery idempotent.
+	committed := len(deliveryIDs)
+	commitAtMS := time.Now().UnixMilli()
+	m.setStatus(func(status *Status) {
+		status.LastCommitAt = commitAtMS
+		status.TotalCommitted += int64(committed)
+		status.TotalDuplicates += int64(result.Skipped)
+		if result.LatestEventAtMS > 0 {
+			status.EndToEndLagSeconds = max(float64(commitAtMS-result.LatestEventAtMS)/1000, 0)
+		}
+	})
+	acked, err := client.Ack(ctx, claim.LeaseID, deliveryIDs)
+	if err == nil && acked != len(deliveryIDs) {
+		err = fmt.Errorf("usage queue acknowledged %d of %d deliveries", acked, len(deliveryIDs))
+	}
+	if err != nil {
+		m.setStatus(func(status *Status) {
+			status.TotalAckFailures++
+		})
+		return true, err
+	}
+	return true, nil
 }
 
 func (m *Manager) consumeRESP(ctx context.Context, cfg RuntimeConfig, client *resp.Client, queue string, popSide string) error {
@@ -398,8 +477,23 @@ func (m *Manager) consumeRESP(ctx context.Context, cfg RuntimeConfig, client *re
 }
 
 func (m *Manager) processItems(ctx context.Context, cfg RuntimeConfig, items []string) error {
+	_, err := m.processItemsResult(ctx, cfg, items)
+	return err
+}
+
+type processResult struct {
+	Inserted        int
+	Skipped         int
+	DeadLetters     int
+	Controls        int
+	Empty           int
+	LatestEventAtMS int64
+}
+
+func (m *Manager) processItemsResult(ctx context.Context, cfg RuntimeConfig, items []string) (processResult, error) {
+	processed := processResult{}
 	if len(items) == 0 {
-		return nil
+		return processed, nil
 	}
 	m.setStatus(func(status *Status) {
 		status.LastConsumedAt = time.Now().UnixMilli()
@@ -408,29 +502,39 @@ func (m *Manager) processItems(ctx context.Context, cfg RuntimeConfig, items []s
 	for _, item := range items {
 		payload := strings.TrimSpace(item)
 		if payload == "" {
+			processed.Empty++
 			continue
 		}
 		if control := classifyUsageControlPayload(payload); control != usageControlNone {
 			if control == usageControlRefresh && m.snapshotResolver != nil {
 				m.snapshotResolver.clear()
 			}
+			processed.Controls++
 			continue
 		}
 		event, err := usage.NormalizeRaw([]byte(payload))
 		if err != nil {
-			_ = m.store.AddDeadLetter(ctx, item, err)
+			if deadLetterErr := m.store.AddDeadLetter(ctx, item, err); deadLetterErr != nil {
+				return processed, deadLetterErr
+			}
+			processed.DeadLetters++
 			m.setStatus(func(status *Status) {
 				status.DeadLetters++
 			})
 			continue
+		}
+		if event.TimestampMS > processed.LatestEventAtMS {
+			processed.LatestEventAtMS = event.TimestampMS
 		}
 		events = append(events, event)
 	}
 	m.enrichAccountSnapshots(ctx, cfg, events)
 	result, err := m.store.InsertEvents(ctx, events)
 	if err != nil {
-		return err
+		return processed, err
 	}
+	processed.Inserted = result.Inserted
+	processed.Skipped = result.Skipped
 	if result.Inserted > 0 {
 		m.handleUsageEvents(ctx, cfg, insertedEvents(events, result.InsertedEventHashes))
 	}
@@ -441,7 +545,7 @@ func (m *Manager) processItems(ctx context.Context, cfg RuntimeConfig, items []s
 			status.TotalSkipped += int64(result.Skipped)
 		})
 	}
-	return nil
+	return processed, nil
 }
 
 type usageControlPayload int
