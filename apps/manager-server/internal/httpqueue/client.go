@@ -35,6 +35,24 @@ type Client struct {
 	HTTPClient    *http.Client
 }
 
+type ClaimItem struct {
+	DeliveryID string `json:"delivery_id"`
+	Payload    string `json:"-"`
+}
+
+type ClaimResult struct {
+	LeaseID string      `json:"lease_id"`
+	Items   []ClaimItem `json:"items"`
+}
+
+type claimResponse struct {
+	LeaseID string `json:"lease_id"`
+	Items   []struct {
+		DeliveryID string          `json:"delivery_id"`
+		Payload    json.RawMessage `json:"payload"`
+	} `json:"items"`
+}
+
 func New(baseURL string, managementKey string) *Client {
 	return &Client{
 		BaseURL:       strings.TrimRight(strings.TrimSpace(baseURL), "/"),
@@ -109,6 +127,109 @@ func (c *Client) Pop(ctx context.Context, count int) ([]string, error) {
 		items = append(items, string(trimmed))
 	}
 	return items, nil
+}
+
+func (c *Client) Claim(ctx context.Context, count int, leaseSeconds int) (ClaimResult, error) {
+	if count <= 0 {
+		count = 1
+	}
+	if leaseSeconds <= 0 {
+		leaseSeconds = 30
+	}
+	var response claimResponse
+	if err := c.postJSON(ctx, "/v0/management/usage-queue/claim", map[string]int{
+		"count":         count,
+		"lease_seconds": leaseSeconds,
+	}, &response); err != nil {
+		return ClaimResult{}, err
+	}
+	result := ClaimResult{LeaseID: response.LeaseID, Items: make([]ClaimItem, 0, len(response.Items))}
+	for _, item := range response.Items {
+		payload, errPayload := decodeClaimPayload(item.Payload)
+		if errPayload != nil {
+			return ClaimResult{}, errPayload
+		}
+		result.Items = append(result.Items, ClaimItem{DeliveryID: item.DeliveryID, Payload: payload})
+	}
+	return result, nil
+}
+
+// decodeClaimPayload accepts both the proxy's string-encoded queue records and
+// direct JSON values so mixed-version deployments remain compatible.
+func decodeClaimPayload(raw json.RawMessage) (string, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return "null", nil
+	}
+	if trimmed[0] != '"' {
+		return string(trimmed), nil
+	}
+	var payload string
+	if err := json.Unmarshal(trimmed, &payload); err != nil {
+		return "", fmt.Errorf("decode claimed usage payload: %w", err)
+	}
+	if strings.TrimSpace(payload) == "" {
+		return "null", nil
+	}
+	return payload, nil
+}
+
+// Ack confirms only deliveries whose local SQLite transaction already committed.
+func (c *Client) Ack(ctx context.Context, leaseID string, deliveryIDs []string) (int, error) {
+	var response struct {
+		Acked int `json:"acked"`
+	}
+	err := c.postJSON(ctx, "/v0/management/usage-queue/ack", struct {
+		LeaseID     string   `json:"lease_id"`
+		DeliveryIDs []string `json:"delivery_ids"`
+	}{LeaseID: leaseID, DeliveryIDs: deliveryIDs}, &response)
+	return response.Acked, err
+}
+
+func (c *Client) postJSON(ctx context.Context, path string, requestBody any, responseBody any) error {
+	base := strings.TrimRight(strings.TrimSpace(c.BaseURL), "/")
+	if base == "" {
+		return errors.New("upstream URL is empty")
+	}
+	if !strings.Contains(base, "://") {
+		base = "http://" + base
+	}
+	parsed, err := url.Parse(base + path)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(requestBody)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, parsed.String(), bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.ManagementKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.ManagementKey)
+	}
+	client := c.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		response, _ := io.ReadAll(io.LimitReader(res.Body, 1024))
+		if isUnsupportedStatus(res.StatusCode) {
+			return fmt.Errorf("%w: %s", ErrUnsupported, res.Status)
+		}
+		return &StatusError{StatusCode: res.StatusCode, Status: res.Status, Body: strings.TrimSpace(string(response))}
+	}
+	if responseBody == nil {
+		return nil
+	}
+	return json.NewDecoder(res.Body).Decode(responseBody)
 }
 
 func (c *Client) endpoint(count int) (string, error) {

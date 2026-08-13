@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/seakee/cpa-manager-plus/apps/manager-server/internal/config"
+	"github.com/seakee/cpa-manager-plus/apps/manager-server/internal/httpqueue"
 	"github.com/seakee/cpa-manager-plus/apps/manager-server/internal/store"
 	"github.com/seakee/cpa-manager-plus/apps/manager-server/internal/usage"
 )
@@ -117,6 +119,205 @@ func TestManagerConsumesHTTPUsageQueue(t *testing.T) {
 	}
 	if events[0].AuthLabelSnapshot != "Alice" {
 		t.Fatalf("auth label snapshot = %q", events[0].AuthLabelSnapshot)
+	}
+}
+
+func TestManagerClaimsCommitsAndAcknowledgesHTTPUsage(t *testing.T) {
+	var claimCalls int32
+	var ackCalls int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v0/management/usage-queue/claim":
+			if atomic.AddInt32(&claimCalls, 1) == 1 {
+				_, _ = w.Write([]byte(`{"lease_id":"lease-1","items":[{"delivery_id":"delivery-1","payload":{"timestamp":"2026-05-06T00:00:00Z","model":"gpt-test","endpoint":"POST /v1/chat/completions","input_tokens":10,"output_tokens":5}}]}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"lease_id":"","items":[]}`))
+		case "/v0/management/usage-queue/ack":
+			var request struct {
+				LeaseID     string   `json:"lease_id"`
+				DeliveryIDs []string `json:"delivery_ids"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Fatalf("decode ack: %v", err)
+			}
+			if request.LeaseID != "lease-1" || len(request.DeliveryIDs) != 1 || request.DeliveryIDs[0] != "delivery-1" {
+				t.Fatalf("ack request = %#v", request)
+			}
+			atomic.AddInt32(&ackCalls, 1)
+			_, _ = w.Write([]byte(`{"acked":1}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(upstream.Close)
+
+	db := newTestStore(t)
+	manager := NewManager(testConfig(t, "http"), db)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	manager.Start(ctx, RuntimeConfig{CPAUpstreamURL: upstream.URL, ManagementKey: "management-key"})
+
+	waitFor(t, func() bool { return atomic.LoadInt32(&ackCalls) == 1 })
+	events, _, err := db.Counts(context.Background())
+	if err != nil || events != 1 {
+		t.Fatalf("counts events=%d err=%v", events, err)
+	}
+	status := manager.Status()
+	if status.TotalClaimed != 1 || status.TotalCommitted != 1 || status.TotalDuplicates != 0 || status.TotalAckFailures != 0 {
+		t.Fatalf("status = %#v", status)
+	}
+	if status.LastClaimAt == 0 || status.LastCommitAt == 0 || status.EndToEndLagSeconds < 0 {
+		t.Fatalf("status timestamps = %#v", status)
+	}
+}
+
+func TestManagerFallsBackToLegacyPopOnlyWhenClaimUnsupported(t *testing.T) {
+	var popCalls int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v0/management/usage-queue/claim":
+			http.NotFound(w, r)
+		case "/v0/management/usage-queue":
+			atomic.AddInt32(&popCalls, 1)
+			_, _ = w.Write([]byte(`[]`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(upstream.Close)
+
+	manager := NewManager(testConfig(t, "http"), newTestStore(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	manager.Start(ctx, RuntimeConfig{CPAUpstreamURL: upstream.URL, ManagementKey: "management-key"})
+	waitFor(t, func() bool { return atomic.LoadInt32(&popCalls) > 0 })
+	if transport := manager.Status().Transport; transport != "http" {
+		t.Fatalf("transport = %q, want http", transport)
+	}
+}
+
+func TestManagerDoesNotFallbackToLegacyPopOnClaimFailure(t *testing.T) {
+	var popCalls int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v0/management/usage-queue/claim":
+			http.Error(w, "temporary", http.StatusServiceUnavailable)
+		case "/v0/management/usage-queue":
+			atomic.AddInt32(&popCalls, 1)
+			_, _ = w.Write([]byte(`[]`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(upstream.Close)
+
+	manager := NewManager(testConfig(t, "http"), newTestStore(t))
+	client := httpqueue.New(upstream.URL, "management-key")
+	if err := manager.consumeHTTPBatch(context.Background(), RuntimeConfig{}, client); err == nil {
+		t.Fatal("consume batch error = nil, want claim failure")
+	}
+	if atomic.LoadInt32(&popCalls) != 0 {
+		t.Fatalf("legacy pop calls = %d, want 0", popCalls)
+	}
+}
+
+func TestManagerDoesNotAcknowledgeWhenInsertFails(t *testing.T) {
+	var ackCalls int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v0/management/usage-queue/claim":
+			_, _ = w.Write([]byte(`{"lease_id":"lease-1","items":[{"delivery_id":"delivery-1","payload":{"timestamp":"2026-05-06T00:00:00Z","model":"gpt-test"}}]}`))
+		case "/v0/management/usage-queue/ack":
+			atomic.AddInt32(&ackCalls, 1)
+			_, _ = w.Write([]byte(`{"acked":1}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(upstream.Close)
+
+	db := newTestStore(t)
+	if err := db.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	manager := NewManager(testConfig(t, "http"), db)
+	client := httpqueue.New(upstream.URL, "management-key")
+	err := manager.consumeHTTPBatch(context.Background(), RuntimeConfig{}, client)
+	if err == nil {
+		t.Fatal("consume batch error = nil, want insert failure")
+	}
+	if atomic.LoadInt32(&ackCalls) != 0 {
+		t.Fatalf("ack calls = %d, want 0", ackCalls)
+	}
+}
+
+func TestManagerAcknowledgesMalformedClaimAfterDeadLetter(t *testing.T) {
+	var ackCalls int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v0/management/usage-queue/claim":
+			_, _ = w.Write([]byte(`{"lease_id":"lease-1","items":[{"delivery_id":"poison-1","payload":["not","an","object"]}]}`))
+		case "/v0/management/usage-queue/ack":
+			atomic.AddInt32(&ackCalls, 1)
+			_, _ = w.Write([]byte(`{"acked":1}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(upstream.Close)
+
+	db := newTestStore(t)
+	manager := NewManager(testConfig(t, "http"), db)
+	if err := manager.consumeHTTPBatch(context.Background(), RuntimeConfig{}, httpqueue.New(upstream.URL, "management-key")); err != nil {
+		t.Fatalf("consume batch: %v", err)
+	}
+	events, deadLetters, err := db.Counts(context.Background())
+	if err != nil || events != 0 || deadLetters != 1 || ackCalls != 1 {
+		t.Fatalf("events=%d deadLetters=%d ackCalls=%d err=%v", events, deadLetters, ackCalls, err)
+	}
+}
+
+func TestManagerCountsAckFailureAndDuplicateRedelivery(t *testing.T) {
+	payload := `{"timestamp":"2026-05-06T00:00:00Z","model":"gpt-test","endpoint":"POST /v1/chat/completions","input_tokens":10,"output_tokens":5}`
+	var claimCalls int32
+	var ackCalls int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v0/management/usage-queue/claim":
+			if atomic.AddInt32(&claimCalls, 1) <= 2 {
+				_, _ = w.Write([]byte(`{"lease_id":"lease-1","items":[{"delivery_id":"delivery-1","payload":` + payload + `}]}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"lease_id":"","items":[]}`))
+		case "/v0/management/usage-queue/ack":
+			if atomic.AddInt32(&ackCalls, 1) == 1 {
+				http.Error(w, "temporary", http.StatusServiceUnavailable)
+				return
+			}
+			_, _ = w.Write([]byte(`{"acked":1}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(upstream.Close)
+
+	db := newTestStore(t)
+	manager := NewManager(testConfig(t, "http"), db)
+	client := httpqueue.New(upstream.URL, "management-key")
+	if err := manager.consumeHTTPBatch(context.Background(), RuntimeConfig{}, client); err == nil {
+		t.Fatal("first batch error = nil, want ack failure")
+	}
+	if err := manager.consumeHTTPBatch(context.Background(), RuntimeConfig{}, client); err != nil {
+		t.Fatalf("second batch: %v", err)
+	}
+	events, _, err := db.Counts(context.Background())
+	if err != nil || events != 1 {
+		t.Fatalf("events=%d err=%v", events, err)
+	}
+	status := manager.Status()
+	if status.TotalCommitted != 2 || status.TotalDuplicates != 1 || status.TotalAckFailures != 1 {
+		t.Fatalf("status = %#v", status)
 	}
 }
 
