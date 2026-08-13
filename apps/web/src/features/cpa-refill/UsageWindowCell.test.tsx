@@ -75,6 +75,7 @@ describe('UsageWindowCell', () => {
       (node) => node.type === 'i' && node.findAll((child) => child.type === 'span').length === 1
     );
     expect(tracks).toHaveLength(2);
+    expect(visibleText).toContain('cpa_refill.usage_rolling_window');
     expect(renderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(0);
     expect(output).not.toContain('%');
     expect(output).not.toContain('usage_remaining_time');
