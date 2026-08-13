@@ -260,6 +260,9 @@
     "usage_requests": "Запросы",
     "usage_tokens": "Токены",
     "usage_account_cost": "Сумма по аккаунту",
+    "usage_remaining": "Осталось {{percent}}%",
+    "usage_remaining_time": "{{duration}} до границы текущего локального окна",
+    "usage_statistics_range": "Диапазон локальной статистики: {{range}}",
     "fields": {
       "id": "ID",
       "masked_email": "Маскированный аккаунт",

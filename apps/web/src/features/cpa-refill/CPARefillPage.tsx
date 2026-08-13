@@ -122,12 +122,41 @@ const asUsageWindows = (value: unknown): CPARefillUsageWindows | null => {
   return windows.five_hour && windows.seven_day ? windows as CPARefillUsageWindows : null;
 };
 
-const formatUsageRange = (window: CPARefillUsageWindow) => {
+const usageWindowBounds = (window: CPARefillUsageWindow) => {
   const start = new Date(window.window_start);
   const end = new Date(window.window_end);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '—';
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return null;
+  return { start, end };
+};
+
+const formatUsageRange = (window: CPARefillUsageWindow) => {
+  const bounds = usageWindowBounds(window);
+  if (!bounds) return '—';
   const formatter = new Intl.DateTimeFormat(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-  return `${formatter.format(start)} – ${formatter.format(end)}`;
+  return `${formatter.format(bounds.start)} – ${formatter.format(bounds.end)}`;
+};
+
+// 本地窗口没有官方额度上限，因此进度条只表达统计时间范围尚未走完的比例，不能解读为官方配额剩余。
+const usageWindowProgress = (window: CPARefillUsageWindow, nowMs = Date.now()) => {
+  const bounds = usageWindowBounds(window);
+  if (!bounds) return null;
+  const durationMs = bounds.end.getTime() - bounds.start.getTime();
+  const remainingMs = Math.min(durationMs, Math.max(0, bounds.end.getTime() - nowMs));
+  return {
+    remainingPercent: Math.round((remainingMs / durationMs) * 100),
+    remainingMs,
+  };
+};
+
+const formatRemainingDuration = (remainingMs: number) => {
+  const totalMinutes = Math.max(0, Math.ceil(remainingMs / 60_000));
+  if (totalMinutes <= 0) return '0m';
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 };
 
 // 独立导出便于对实际渲染的请求数、Token、金额单位和可访问提示做回归测试。
@@ -152,8 +181,13 @@ export function UsageWindowCell({ value }: { value: unknown }) {
           }]}
         />
       </div>
-      {rows.map((row) => (
-        <div className={styles.usageWindowRow} key={row.key}>
+      {rows.map((row) => {
+        const progress = usageWindowProgress(row.value);
+        const progressLabel = progress
+          ? t('cpa_refill.usage_remaining', { percent: progress.remainingPercent })
+          : '';
+        return (
+          <div className={styles.usageWindowRow} key={row.key}>
           <div className={styles.usageWindowMetrics}>
             <span title={t('cpa_refill.usage_requests')}>{formatCompactCount(row.value.requests)} req</span>
             <span title={t('cpa_refill.usage_tokens')}>{formatCompactCount(row.value.tokens)}</span>
@@ -161,11 +195,32 @@ export function UsageWindowCell({ value }: { value: unknown }) {
           </div>
           <div className={styles.usageWindowRange}>
             <strong className={row.key === 'five_hour' ? styles.fiveHourBadge : styles.sevenDayBadge}>{row.label}</strong>
-            <i aria-hidden="true" />
-            <small>{formatUsageRange(row.value)}</small>
+            {progress ? (
+              <>
+                <div
+                  className={`${styles.usageWindowProgress} ${row.key === 'five_hour' ? styles.fiveHourProgress : styles.sevenDayProgress}`}
+                  role="progressbar"
+                  aria-label={progressLabel}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={progress.remainingPercent}
+                  title={progressLabel}
+                >
+                  <span style={{ width: `${progress.remainingPercent}%` }} />
+                </div>
+                <small className={styles.usageWindowRemaining}>
+                  <b>{progressLabel}</b>
+                  <span>{t('cpa_refill.usage_remaining_time', { duration: formatRemainingDuration(progress.remainingMs) })}</span>
+                </small>
+              </>
+            ) : <small>{formatUsageRange(row.value)}</small>}
           </div>
+          <small className={styles.usageWindowStatisticsRange}>
+            {t('cpa_refill.usage_statistics_range', { range: formatUsageRange(row.value) })}
+          </small>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
