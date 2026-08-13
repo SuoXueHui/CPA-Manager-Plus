@@ -136,6 +136,24 @@ func TestClientClaimAndAckUsageQueue(t *testing.T) {
 	}
 }
 
+func TestClientClaimReadsStringEncodedPayload(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"lease_id":"lease-1","items":[{"delivery_id":"delivery-1","payload":"{\"timestamp\":\"2026-05-06T00:00:00Z\",\"model\":\"gpt-test\"}"}]}`))
+	}))
+	t.Cleanup(upstream.Close)
+
+	claim, err := New(upstream.URL, "management-key").Claim(context.Background(), 10, 30)
+	if err != nil {
+		t.Fatalf("claim: %v", err)
+	}
+	if len(claim.Items) != 1 {
+		t.Fatalf("claim items = %d, want 1", len(claim.Items))
+	}
+	if got := claim.Items[0].Payload; got != `{"timestamp":"2026-05-06T00:00:00Z","model":"gpt-test"}` {
+		t.Fatalf("payload = %q, want decoded usage object", got)
+	}
+}
+
 func TestClientClaimClassifiesUnsupportedEndpoint(t *testing.T) {
 	for _, status := range []int{http.StatusNotFound, http.StatusMethodNotAllowed, http.StatusNotImplemented} {
 		t.Run(http.StatusText(status), func(t *testing.T) {

@@ -145,13 +145,33 @@ func (c *Client) Claim(ctx context.Context, count int, leaseSeconds int) (ClaimR
 	}
 	result := ClaimResult{LeaseID: response.LeaseID, Items: make([]ClaimItem, 0, len(response.Items))}
 	for _, item := range response.Items {
-		payload := strings.TrimSpace(string(item.Payload))
-		if payload == "" {
-			payload = "null"
+		payload, errPayload := decodeClaimPayload(item.Payload)
+		if errPayload != nil {
+			return ClaimResult{}, errPayload
 		}
 		result.Items = append(result.Items, ClaimItem{DeliveryID: item.DeliveryID, Payload: payload})
 	}
 	return result, nil
+}
+
+// decodeClaimPayload accepts both the proxy's string-encoded queue records and
+// direct JSON values so mixed-version deployments remain compatible.
+func decodeClaimPayload(raw json.RawMessage) (string, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return "null", nil
+	}
+	if trimmed[0] != '"' {
+		return string(trimmed), nil
+	}
+	var payload string
+	if err := json.Unmarshal(trimmed, &payload); err != nil {
+		return "", fmt.Errorf("decode claimed usage payload: %w", err)
+	}
+	if strings.TrimSpace(payload) == "" {
+		return "null", nil
+	}
+	return payload, nil
 }
 
 // Ack confirms only deliveries whose local SQLite transaction already committed.
