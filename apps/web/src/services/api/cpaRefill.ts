@@ -32,6 +32,28 @@ export interface CPARefillOverview {
   generated_at?: string;
 }
 
+// Controller 基于账号小时桶聚合的本地窗口；金额单位保持 micro USD，避免前后端浮点误差。
+export interface CPARefillUsageWindow {
+  requests: number;
+  tokens: number;
+  cost_micro_usd: number;
+  window_start: string;
+  window_end: string;
+}
+
+export interface CPARefillUsageWindows {
+  five_hour: CPARefillUsageWindow;
+  seven_day: CPARefillUsageWindow;
+}
+
+// 账号列表使用显式 DTO，确保用量窗口结构不会退化成任意对象。
+export interface CPARefillAccountListItem extends Record<string, unknown> {
+  id: number;
+  email: string;
+  status: string;
+  usage_windows?: CPARefillUsageWindows;
+}
+
 export interface CPARefillListQuery {
   q?: string;
   status?: string;
@@ -45,8 +67,8 @@ export interface CPARefillListQuery {
   cursor?: string;
 }
 
-export interface CPARefillListResponse {
-  items: Array<Record<string, unknown>>;
+export interface CPARefillListResponse<TItem extends Record<string, unknown> = Record<string, unknown>> {
+  items: TItem[];
   page: {
     page_size: number;
     has_more: boolean;
@@ -78,8 +100,11 @@ export const cpaRefillApi = {
   overview: () =>
     apiClient.get<CPARefillOverview>(`${BASE_PATH}/overview`, { timeout: READ_TIMEOUT_MS }),
 
-  list: (resource: CPARefillListResource, query: CPARefillListQuery = {}) =>
-    apiClient.get<CPARefillListResponse>(`${BASE_PATH}/${resource}`, {
+  list: <TItem extends Record<string, unknown> = Record<string, unknown>>(
+    resource: CPARefillListResource,
+    query: CPARefillListQuery = {}
+  ) =>
+    apiClient.get<CPARefillListResponse<TItem>>(`${BASE_PATH}/${resource}`, {
       params: compactQuery(query),
       timeout: READ_TIMEOUT_MS,
     }),

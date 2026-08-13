@@ -8,10 +8,13 @@ import type { SelectOption } from '@/components/ui/Select';
 import {
   cpaRefillApi,
   type CPARefillAction,
+  type CPARefillAccountListItem,
   type CPARefillListQuery,
   type CPARefillListResource,
   type CPARefillOverview,
   type CPARefillPolicy,
+  type CPARefillUsageWindow,
+  type CPARefillUsageWindows,
 } from '@/services/api/cpaRefill';
 import { useNotificationStore } from '@/stores';
 import { CPA_REFILL_OVERVIEW_POLL_MS, shouldPollCPARefillOverview } from './polling';
@@ -84,7 +87,7 @@ const tabs: Tab[] = [
 ];
 
 const columns: Record<CPARefillListResource, string[]> = {
-  accounts: ['email', 'status', 'total_tokens', 'cost_micro_usd', 'imported_at', 'expires_at', 'last_request_at'],
+  accounts: ['email', 'status', 'usage_windows', 'imported_at', 'expires_at', 'last_request_at'],
   decisions: ['id', 'status', 'current_capacity', 'target_capacity', 'deficit', 'planned_quantity', 'reason', 'created_at'],
   orders: ['id', 'provider', 'status', 'requested_quantity', 'delivered_quantity', 'amount', 'error_code', 'created_at'],
   recoveries: ['id', 'recovery_id', 'account_id', 'provider', 'status', 'attempt_count', 'updated_at'],
@@ -98,12 +101,61 @@ const numberValue = (value: unknown) =>
 const stringValue = (value: unknown) =>
   value === undefined || value === null || value === '' ? '—' : String(value);
 
-// Token 使用完整千分位，便于管理员核对账号累计用量。
+// 窗口单元格使用紧凑数字，优先保证 50 行账号列表的可扫描性。
+const formatCompactCount = (value: unknown) =>
+  new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(numberValue(value));
+
+// 详情中的累计 Token 仍使用完整千分位，便于管理员精确核对。
 const formatTokenCount = (value: unknown) =>
   new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(numberValue(value));
 
 // Controller 金额以 micro USD 返回；管理页转换为美元但保留六位精度，避免小额被显示成 0。
 const formatMicroUSD = (value: unknown) => `$${(numberValue(value) / 1_000_000).toFixed(6)}`;
+
+// 窗口徽标保留两位美元精度，与 Sub2API 的高密度账号成本展示一致。
+const formatCompactMicroUSD = (value: unknown) => `A $${(numberValue(value) / 1_000_000).toFixed(2)}`;
+
+const asUsageWindows = (value: unknown): CPARefillUsageWindows | null => {
+  if (!value || typeof value !== 'object') return null;
+  const windows = value as Partial<CPARefillUsageWindows>;
+  return windows.five_hour && windows.seven_day ? windows as CPARefillUsageWindows : null;
+};
+
+const formatUsageRange = (window: CPARefillUsageWindow) => {
+  const start = new Date(window.window_start);
+  const end = new Date(window.window_end);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '—';
+  const formatter = new Intl.DateTimeFormat(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return `${formatter.format(start)} – ${formatter.format(end)}`;
+};
+
+function UsageWindowCell({ value }: { value: unknown }) {
+  const { t } = useTranslation();
+  const windows = asUsageWindows(value);
+  if (!windows) return <span className={styles.usageWindowMissing}>—</span>;
+  const rows: Array<{ key: keyof CPARefillUsageWindows; label: string; value: CPARefillUsageWindow }> = [
+    { key: 'five_hour', label: '5h', value: windows.five_hour },
+    { key: 'seven_day', label: '7d', value: windows.seven_day },
+  ];
+  return (
+    <div className={styles.usageWindowCell} title={t('cpa_refill.usage_windows_local_hint')}>
+      {rows.map((row) => (
+        <div className={styles.usageWindowRow} key={row.key}>
+          <div className={styles.usageWindowMetrics}>
+            <span title={t('cpa_refill.usage_requests')}>{formatCompactCount(row.value.requests)} req</span>
+            <span title={t('cpa_refill.usage_tokens')}>{formatCompactCount(row.value.tokens)}</span>
+            <span title={t('cpa_refill.usage_account_cost')}>{formatCompactMicroUSD(row.value.cost_micro_usd)}</span>
+          </div>
+          <div className={styles.usageWindowRange}>
+            <strong className={row.key === 'five_hour' ? styles.fiveHourBadge : styles.sevenDayBadge}>{row.label}</strong>
+            <i aria-hidden="true" />
+            <small>{formatUsageRange(row.value)}</small>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // 供应商订单金额以人民币分返回，与容量/账号的 micro USD 不是同一单位。
 const formatFen = (value: unknown) => `¥${(numberValue(value) / 100).toFixed(2)}`;
@@ -252,7 +304,9 @@ export function CPARefillPage() {
         limit: 50,
         cursor: append ? nextCursor : undefined,
       };
-      const response = await cpaRefillApi.list(resource, query);
+      const response = resource === 'accounts'
+        ? await cpaRefillApi.list<CPARefillAccountListItem>(resource, query)
+        : await cpaRefillApi.list(resource, query);
       if (requestID !== listRequestIDRef.current) return;
       setItems((current) => (append ? [...current, ...response.items] : response.items));
       setNextCursor(response.page.next_cursor || '');
@@ -481,7 +535,9 @@ export function CPARefillPage() {
           </form>
           <div className={styles.tableWrap}>
             <table><thead><tr>{columns[activeTab].map((column) => <th key={column}>{t(`cpa_refill.fields.${column}`, { defaultValue: column })}</th>)}{(activeTab === 'accounts' || activeTab === 'orders') && <th>{t('cpa_refill.operation')}</th>}</tr></thead>
-              <tbody>{items.map((item, index) => <tr key={stringValue(item.id) + index}>{columns[activeTab].map((column) => <td key={column} title={displayValue(column, item[column], t)}>{displayValue(column, item[column], t)}</td>)}{(activeTab === 'accounts' || activeTab === 'orders') && <td><button type="button" className={styles.detailButton} onClick={() => void openDetail(item)}>{t('cpa_refill.view_detail')}</button></td>}</tr>)}</tbody>
+              <tbody>{items.map((item, index) => <tr key={stringValue(item.id) + index}>{columns[activeTab].map((column) => column === 'usage_windows'
+                ? <td key={column} className={styles.usageWindowTableCell}><UsageWindowCell value={item[column]} /></td>
+                : <td key={column} title={displayValue(column, item[column], t)}>{displayValue(column, item[column], t)}</td>)}{(activeTab === 'accounts' || activeTab === 'orders') && <td><button type="button" className={styles.detailButton} onClick={() => void openDetail(item)}>{t('cpa_refill.view_detail')}</button></td>}</tr>)}</tbody>
             </table>
             {!listLoading && items.length === 0 && <div className={styles.empty}>{t('cpa_refill.empty')}</div>}
           </div>

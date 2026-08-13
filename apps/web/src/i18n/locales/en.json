@@ -255,6 +255,10 @@
     "order_detail": "Order Details",
     "delivered_items": "Delivered Accounts",
     "account_events": "Account Events",
+    "usage_windows_local_hint": "Controller-local usage for the past 5 hours and 7 days; this is not the official ChatGPT quota window.",
+    "usage_requests": "Requests",
+    "usage_tokens": "Tokens",
+    "usage_account_cost": "Account billed amount",
     "fields": {
       "id": "ID",
       "masked_email": "Masked Account",
@@ -283,6 +287,7 @@
       "email": "Account",
       "total_tokens": "Total Tokens",
       "cost_micro_usd": "Total Cost",
+      "usage_windows": "Usage windows",
       "imported_at": "Imported At",
       "expires_at": "Subscription Expires At",
       "account_id": "Account ID",

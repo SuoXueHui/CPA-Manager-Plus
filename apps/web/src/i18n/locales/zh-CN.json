@@ -255,6 +255,10 @@
     "order_detail": "订单明细",
     "delivered_items": "交付账号",
     "account_events": "账号事件",
+    "usage_windows_local_hint": "Controller 本地统计的过去 5 小时与过去 7 天用量，不代表 ChatGPT 官方配额窗口。",
+    "usage_requests": "请求数",
+    "usage_tokens": "Token",
+    "usage_account_cost": "账号计费金额",
     "fields": {
       "id": "ID",
       "masked_email": "脱敏账号",
@@ -283,6 +287,7 @@
       "email": "账号",
       "total_tokens": "累计 Token",
       "cost_micro_usd": "累计金额",
+      "usage_windows": "用量窗口",
       "imported_at": "导入时间",
       "expires_at": "订阅到期时间",
       "account_id": "账号 ID",

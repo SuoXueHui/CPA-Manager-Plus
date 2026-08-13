@@ -32,10 +32,22 @@
 .filterSelectTrigger:hover, .policySelectTrigger:hover { border-color: color-mix(in srgb, #0ca678 44%, var(--border-subtle)); background: color-mix(in srgb, #0ca678 4%, var(--surface-subtle)); }
 .filterSelectTrigger:focus, .policySelectTrigger:focus { border-color: #0ca678; box-shadow: 0 0 0 3px color-mix(in srgb, #0ca678 12%, transparent); }
 .tableWrap { width: 100%; overflow-x: auto; }
-.tableWrap table { width: 100%; border-collapse: collapse; min-width: 860px; }
+.tableWrap table { width: 100%; border-collapse: collapse; min-width: 1080px; }
 .tableWrap th { text-align: left; padding: 11px 14px; background: var(--surface-subtle); color: var(--text-secondary); font-size: 12px; font-weight: 750; }
 .tableWrap td { max-width: 260px; padding: 12px 14px; border-top: 1px solid var(--border-subtle); color: var(--text-primary); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tableWrap tbody tr:hover { background: color-mix(in srgb, #0ca678 5%, var(--surface-color)); }
+.tableWrap .usageWindowTableCell { width: 350px; max-width: 390px; overflow: visible; white-space: normal; }
+.usageWindowCell { display: grid; gap: 10px; min-width: 320px; padding: 3px 0; }
+.usageWindowRow { display: grid; gap: 5px; }
+.usageWindowMetrics { display: flex; gap: 6px; align-items: center; }
+.usageWindowMetrics span { padding: 4px 7px; border-radius: 7px; background: var(--surface-subtle); color: var(--text-secondary); font-size: 10px; font-weight: 650; line-height: 1; white-space: nowrap; }
+.usageWindowRange { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.usageWindowRange strong { flex: 0 0 34px; padding: 3px 4px; border-radius: 7px; text-align: center; font-size: 11px; font-weight: 800; }
+.fiveHourBadge { background: color-mix(in srgb, #6366f1 15%, var(--surface-color)); color: #4f46e5; }
+.sevenDayBadge { background: color-mix(in srgb, #10b981 15%, var(--surface-color)); color: #07845f; }
+.usageWindowRange i { flex: 0 0 42px; height: 2px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--text-secondary) 24%, transparent); }
+.usageWindowRange small { min-width: 0; overflow: hidden; color: var(--text-secondary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.usageWindowMissing { color: var(--text-secondary); }
 .detailButton { border: 0; background: transparent; color: #0a8f63; font-weight: 700; cursor: pointer; }
 .empty { padding: 54px 20px; text-align: center; color: var(--text-secondary); }
 .loadMore { display: flex; justify-content: center; padding: 16px; border-top: 1px solid var(--border-subtle); }

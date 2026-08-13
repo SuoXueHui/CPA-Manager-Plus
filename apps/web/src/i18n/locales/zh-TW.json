@@ -255,6 +255,10 @@
     "order_detail": "訂單明細",
     "delivered_items": "交付帳號",
     "account_events": "帳號事件",
+    "usage_windows_local_hint": "Controller 本地統計的過去 5 小時與過去 7 天用量，不代表 ChatGPT 官方配額視窗。",
+    "usage_requests": "請求數",
+    "usage_tokens": "Token",
+    "usage_account_cost": "帳號計費金額",
     "fields": {
       "id": "ID",
       "masked_email": "脫敏帳號",
@@ -283,6 +287,7 @@
       "email": "帳號",
       "total_tokens": "累計 Token",
       "cost_micro_usd": "累計金額",
+      "usage_windows": "用量視窗",
       "imported_at": "匯入時間",
       "expires_at": "訂閱到期時間",
       "account_id": "帳號 ID",
