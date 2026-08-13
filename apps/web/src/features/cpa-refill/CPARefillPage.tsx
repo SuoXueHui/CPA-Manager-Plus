@@ -116,10 +116,25 @@ const formatMicroUSD = (value: unknown) => `$${(numberValue(value) / 1_000_000).
 // 窗口徽标保留两位美元精度，与 Sub2API 的高密度账号成本展示一致。
 const formatCompactMicroUSD = (value: unknown) => `A $${(numberValue(value) / 1_000_000).toFixed(2)}`;
 
+// 列表统计必须完整且非负；坏数据宁可显示缺失，也不能伪装成 0 影响运营判断。
+const isUsageWindow = (value: unknown): value is CPARefillUsageWindow => {
+  if (!value || typeof value !== 'object') return false;
+  const window = value as Partial<CPARefillUsageWindow>;
+  const counters = [window.requests, window.tokens, window.cost_micro_usd];
+  if (!counters.every((counter) => typeof counter === 'number' && Number.isFinite(counter) && counter >= 0)) {
+    return false;
+  }
+  const start = typeof window.window_start === 'string' ? new Date(window.window_start) : null;
+  const end = typeof window.window_end === 'string' ? new Date(window.window_end) : null;
+  return Boolean(start && end && !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start < end);
+};
+
 const asUsageWindows = (value: unknown): CPARefillUsageWindows | null => {
   if (!value || typeof value !== 'object') return null;
   const windows = value as Partial<CPARefillUsageWindows>;
-  return windows.five_hour && windows.seven_day ? windows as CPARefillUsageWindows : null;
+  return isUsageWindow(windows.five_hour) && isUsageWindow(windows.seven_day)
+    ? windows as CPARefillUsageWindows
+    : null;
 };
 
 const formatUsageRange = (window: CPARefillUsageWindow) => {
@@ -155,7 +170,7 @@ export function UsageWindowCell({ value }: { value: unknown }) {
       {rows.map((row) => {
         const rangeLabel = t('cpa_refill.usage_statistics_range', { range: formatUsageRange(row.value) });
         return (
-          <div className={styles.usageWindowRow} key={row.key} title={rangeLabel} aria-label={rangeLabel}>
+          <div className={styles.usageWindowRow} key={row.key} role="group" title={rangeLabel} aria-label={rangeLabel}>
             <div className={styles.usageWindowMetrics}>
               <span title={t('cpa_refill.usage_requests')}>{formatCompactCount(row.value.requests)} req</span>
               <span title={t('cpa_refill.usage_tokens')}>{formatCompactCount(row.value.tokens)}</span>

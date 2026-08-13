@@ -6,7 +6,10 @@ vi.mock('react-i18next', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-i18next')>();
   return {
     ...actual,
-    useTranslation: () => ({ t: (key: string) => key }),
+    useTranslation: () => ({
+      t: (key: string, options?: { range?: string }) =>
+        options?.range ? `${key}:${options.range}` : key,
+    }),
   };
 });
 
@@ -69,7 +72,9 @@ describe('UsageWindowCell', () => {
     expect(windowRows).toHaveLength(2);
     for (const row of windowRows) {
       expect(row.props['aria-label']).toContain('cpa_refill.usage_statistics_range');
-      expect(row.props.title).toContain('cpa_refill.usage_statistics_range');
+      expect(row.props['aria-label']).not.toContain('—');
+      expect(row.props.title).toBe(row.props['aria-label']);
+      expect(row.props.role).toBe('group');
     }
     const tracks = renderer.root.findAll(
       (node) => node.type === 'i' && node.findAll((child) => child.type === 'span').length === 1
@@ -81,5 +86,34 @@ describe('UsageWindowCell', () => {
     expect(renderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(0);
     expect(output).not.toContain('%');
     expect(output).not.toContain('usage_remaining_time');
+  });
+
+  it('renders a dash when a usage window contains invalid values', () => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <UsageWindowCell
+          value={{
+            five_hour: {
+              requests: Number.NaN,
+              tokens: 100,
+              cost_micro_usd: 200,
+              window_start: 'invalid',
+              window_end: '2026-08-13T12:00:00Z',
+            },
+            seven_day: {
+              requests: 1,
+              tokens: 100,
+              cost_micro_usd: 200,
+              window_start: '2026-08-06T12:00:00Z',
+              window_end: '2026-08-13T12:00:00Z',
+            },
+          }}
+        />
+      );
+    });
+
+    expect(JSON.stringify(renderer.toJSON())).toContain('—');
+    expect(renderer.root.findAll((node) => node.props.role === 'group')).toHaveLength(0);
   });
 });
