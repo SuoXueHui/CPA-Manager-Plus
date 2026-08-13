@@ -75,6 +75,8 @@ describe('UsageWindowCell', () => {
       (node) => node.type === 'i' && node.findAll((child) => child.type === 'span').length === 1
     );
     expect(tracks).toHaveLength(2);
+    expect(String(tracks[0].props.className)).toContain('fiveHourTrack');
+    expect(String(tracks[1].props.className)).toContain('sevenDayTrack');
     expect(visibleText).toContain('cpa_refill.usage_rolling_window');
     expect(renderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(0);
     expect(output).not.toContain('%');
