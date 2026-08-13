@@ -260,9 +260,6 @@
     "usage_requests": "Requests",
     "usage_tokens": "Tokens",
     "usage_account_cost": "Account billed amount",
-    "usage_remaining": "{{percent}}% remaining",
-    "usage_remaining_time": "{{duration}} to the current local-window boundary",
-    "usage_statistics_range": "Local statistics range: {{range}}",
     "fields": {
       "id": "ID",
       "masked_email": "Masked Account",

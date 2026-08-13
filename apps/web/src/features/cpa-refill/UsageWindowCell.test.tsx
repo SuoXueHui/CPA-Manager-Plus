@@ -17,50 +17,6 @@ vi.mock('@/components/quota', () => ({
 }));
 
 describe('UsageWindowCell', () => {
-  it('renders an explicit remaining-time progress bar instead of a decorative line', () => {
-    const now = Date.now();
-    let renderer!: ReactTestRenderer;
-    act(() => {
-      renderer = create(
-        <UsageWindowCell
-          value={{
-            five_hour: {
-              requests: 27,
-              tokens: 1_057_000,
-              cost_micro_usd: 2_620_000,
-              window_start: new Date(now - 4 * 60 * 60 * 1000).toISOString(),
-              window_end: new Date(now + 60 * 60 * 1000).toISOString(),
-            },
-            seven_day: {
-              requests: 49,
-              tokens: 1_466_000,
-              cost_micro_usd: 2_560_000,
-              window_start: new Date(now - 6 * 24 * 60 * 60 * 1000).toISOString(),
-              window_end: new Date(now + 24 * 60 * 60 * 1000).toISOString(),
-            },
-          }}
-        />
-      );
-    });
-
-    const progressBars = renderer.root.findAllByProps({ role: 'progressbar' });
-    expect(progressBars).toHaveLength(2);
-    expect(progressBars[0].props).toEqual(expect.objectContaining({
-      'aria-valuenow': 20,
-      'aria-valuemin': 0,
-      'aria-valuemax': 100,
-    }));
-    expect(progressBars[1].props).toEqual(expect.objectContaining({
-      'aria-valuenow': 14,
-      'aria-valuemin': 0,
-      'aria-valuemax': 100,
-    }));
-    const output = JSON.stringify(renderer.toJSON());
-    expect(output).toContain('cpa_refill.usage_remaining');
-    expect(output).toContain('cpa_refill.usage_remaining_time');
-    expect(output).toContain('cpa_refill.usage_statistics_range');
-  });
-
   it('renders request, token and micro USD values for both local windows', () => {
     let renderer!: ReactTestRenderer;
     act(() => {
