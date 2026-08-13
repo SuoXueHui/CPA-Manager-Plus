@@ -255,6 +255,7 @@
     "order_detail": "Order Details",
     "delivered_items": "Delivered Accounts",
     "account_events": "Account Events",
+    "usage_windows_local_label": "Controller local usage",
     "usage_windows_local_hint": "Controller-local usage for the past 5 hours and 7 days; this is not the official ChatGPT quota window.",
     "usage_requests": "Requests",
     "usage_tokens": "Tokens",

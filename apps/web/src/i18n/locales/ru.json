@@ -255,6 +255,7 @@
     "order_detail": "Данные заказа",
     "delivered_items": "Доставленные аккаунты",
     "account_events": "События аккаунта",
+    "usage_windows_local_label": "Локальная статистика Controller",
     "usage_windows_local_hint": "Локальная статистика Controller за последние 5 часов и 7 дней; это не официальное окно квоты ChatGPT.",
     "usage_requests": "Запросы",
     "usage_tokens": "Токены",

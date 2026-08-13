@@ -5,6 +5,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Select } from '@/components/ui/Select';
 import type { SelectOption } from '@/components/ui/Select';
+import { QuotaInfoTooltip } from '@/components/quota';
 import {
   cpaRefillApi,
   type CPARefillAction,
@@ -129,7 +130,8 @@ const formatUsageRange = (window: CPARefillUsageWindow) => {
   return `${formatter.format(start)} – ${formatter.format(end)}`;
 };
 
-function UsageWindowCell({ value }: { value: unknown }) {
+// 独立导出便于对实际渲染的请求数、Token、金额单位和可访问提示做回归测试。
+export function UsageWindowCell({ value }: { value: unknown }) {
   const { t } = useTranslation();
   const windows = asUsageWindows(value);
   if (!windows) return <span className={styles.usageWindowMissing}>—</span>;
@@ -138,7 +140,18 @@ function UsageWindowCell({ value }: { value: unknown }) {
     { key: 'seven_day', label: '7d', value: windows.seven_day },
   ];
   return (
-    <div className={styles.usageWindowCell} title={t('cpa_refill.usage_windows_local_hint')}>
+    <div className={styles.usageWindowCell}>
+      <div className={styles.usageWindowHeader}>
+        <span>{t('cpa_refill.usage_windows_local_label')}</span>
+        <QuotaInfoTooltip
+          ariaLabel={t('cpa_refill.usage_windows_local_hint')}
+          rows={[{
+            key: 'local-window',
+            label: t('cpa_refill.fields.usage_windows'),
+            value: t('cpa_refill.usage_windows_local_hint'),
+          }]}
+        />
+      </div>
       {rows.map((row) => (
         <div className={styles.usageWindowRow} key={row.key}>
           <div className={styles.usageWindowMetrics}>

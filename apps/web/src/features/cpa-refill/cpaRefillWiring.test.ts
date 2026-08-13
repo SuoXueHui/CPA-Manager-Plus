@@ -101,6 +101,7 @@ describe('CPA refill console wiring', () => {
       expect(locale.cpa_refill.fields.total_tokens).toBeTruthy();
       expect(locale.cpa_refill.fields.cost_micro_usd).toBeTruthy();
       expect(locale.cpa_refill.fields.usage_windows).toBeTruthy();
+      expect(locale.cpa_refill.usage_windows_local_label).toBeTruthy();
       expect(locale.cpa_refill.usage_windows_local_hint).toBeTruthy();
       expect(locale.cpa_refill.usage_requests).toBeTruthy();
       expect(locale.cpa_refill.usage_account_cost).toBeTruthy();

@@ -38,6 +38,7 @@
 .tableWrap tbody tr:hover { background: color-mix(in srgb, #0ca678 5%, var(--surface-color)); }
 .tableWrap .usageWindowTableCell { width: 350px; max-width: 390px; overflow: visible; white-space: normal; }
 .usageWindowCell { display: grid; gap: 10px; min-width: 320px; padding: 3px 0; }
+.usageWindowHeader { display: flex; align-items: center; gap: 5px; color: var(--text-secondary); font-size: 10px; font-weight: 650; }
 .usageWindowRow { display: grid; gap: 5px; }
 .usageWindowMetrics { display: flex; gap: 6px; align-items: center; }
 .usageWindowMetrics span { padding: 4px 7px; border-radius: 7px; background: var(--surface-subtle); color: var(--text-secondary); font-size: 10px; font-weight: 650; line-height: 1; white-space: nowrap; }

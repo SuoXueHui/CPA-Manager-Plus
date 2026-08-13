@@ -255,6 +255,7 @@
     "order_detail": "订单明细",
     "delivered_items": "交付账号",
     "account_events": "账号事件",
+    "usage_windows_local_label": "Controller 本地统计",
     "usage_windows_local_hint": "Controller 本地统计的过去 5 小时与过去 7 天用量，不代表 ChatGPT 官方配额窗口。",
     "usage_requests": "请求数",
     "usage_tokens": "Token",
