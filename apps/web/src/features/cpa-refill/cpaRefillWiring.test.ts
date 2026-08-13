@@ -46,6 +46,9 @@ describe('CPA refill console wiring', () => {
     expect(pageSource).toContain("styles.usageWindowCell");
     expect(pageSource).toContain("cpa_refill.usage_windows_local_hint");
     expect(pageSource).toContain("CPARefillUsageWindows");
+    expect(pageSource).toContain("quotaValue={item.quota_windows}");
+    expect(pageSource).toContain('role="progressbar"');
+    expect(pageSource).toContain('aria-valuenow={usedPercent}');
     expect(pageSource).toContain("key === 'status'");
     expect(pageSource).toContain("key === 'source'");
     expect(pageSource).toContain("key === 'import_status'");
@@ -61,6 +64,7 @@ describe('CPA refill console wiring', () => {
     expect(pageSource).toContain("maximumFractionDigits: 1");
     expect(pageSource).toContain("toFixed(2)");
     expect(pageSource).not.toContain('setInterval(() => setUsage');
+    expect(pageSource.match(/window\.setInterval/g)).toHaveLength(2);
   });
 
   it('uses the shared Select and Chinese decision presentation', () => {
@@ -103,8 +107,14 @@ describe('CPA refill console wiring', () => {
       expect(locale.cpa_refill.fields.usage_windows).toBeTruthy();
       expect(locale.cpa_refill.usage_windows_local_label).toBeTruthy();
       expect(locale.cpa_refill.usage_windows_local_hint).toBeTruthy();
+      expect(locale.cpa_refill.usage_windows_summary_label).toBeTruthy();
+      expect(locale.cpa_refill.usage_quota_official_hint).toBeTruthy();
       expect(locale.cpa_refill.usage_requests).toBeTruthy();
       expect(locale.cpa_refill.usage_account_cost).toBeTruthy();
+      expect(locale.cpa_refill.usage_quota_unavailable).toBeTruthy();
+      expect(locale.cpa_refill.usage_quota_stale).toBeTruthy();
+      expect(locale.cpa_refill.usage_remaining_label).toBeTruthy();
+      expect(locale.cpa_refill.usage_resets_in).toBeTruthy();
       expect(locale.cpa_refill.fields.imported_at).toBeTruthy();
       expect(locale.cpa_refill.fields.expires_at).toBeTruthy();
       expect(locale.cpa_refill.values.status.active).toBeTruthy();

@@ -14,6 +14,8 @@ import {
   type CPARefillListResource,
   type CPARefillOverview,
   type CPARefillPolicy,
+  type CPARefillQuotaWindow,
+  type CPARefillQuotaWindows,
   type CPARefillUsageWindow,
   type CPARefillUsageWindows,
 } from '@/services/api/cpaRefill';
@@ -145,11 +147,78 @@ const formatUsageRange = (window: CPARefillUsageWindow) => {
   return `${formatter.format(start)} – ${formatter.format(end)}`;
 };
 
+// quota 百分比保留一位有效小数；整数不补 .0，维持高密度表格的可扫描性。
+const formatQuotaPercent = (value: number) => {
+  const rounded = Math.round(value * 10) / 10;
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(rounded);
+};
+
+const isQuotaWindow = (value: unknown): value is CPARefillQuotaWindow => {
+  if (!value || typeof value !== 'object') return false;
+  const window = value as Partial<CPARefillQuotaWindow>;
+  if (
+    ![window.used_milli_percent, window.remaining_milli_percent, window.window_seconds].every(
+      (item) => typeof item === 'number' && Number.isFinite(item) && item >= 0
+    ) || !window.window_seconds
+  ) {
+    return false;
+  }
+  // reset_at 是显式可空字段；缺字段也视为坏 DTO，防止悄悄退化成“未知”。
+  if (!Object.prototype.hasOwnProperty.call(window, 'reset_at')) return false;
+  if (window.reset_at !== null && (typeof window.reset_at !== 'string' || Number.isNaN(new Date(window.reset_at).getTime()))) return false;
+  return true;
+};
+
+const asQuotaWindows = (value: unknown): CPARefillQuotaWindows | null => {
+  if (!value || typeof value !== 'object') return null;
+  const quota = value as Partial<CPARefillQuotaWindows>;
+  const fetchedAt = typeof quota.fetched_at === 'string' ? new Date(quota.fetched_at) : null;
+  if (
+    typeof quota.source !== 'string' || !quota.source ||
+    (quota.status !== 'fresh' && quota.status !== 'stale') ||
+    typeof quota.error_code !== 'string' ||
+    typeof quota.plan_type !== 'string' ||
+    !fetchedAt || Number.isNaN(fetchedAt.getTime())
+  ) {
+    return null;
+  }
+  if (!Object.prototype.hasOwnProperty.call(quota, 'five_hour') || !Object.prototype.hasOwnProperty.call(quota, 'seven_day')) return null;
+  if (quota.five_hour !== null && !isQuotaWindow(quota.five_hour)) return null;
+  if (quota.seven_day !== null && !isQuotaWindow(quota.seven_day)) return null;
+  if (!quota.five_hour && !quota.seven_day) return null;
+  return quota as CPARefillQuotaWindows;
+};
+
+// 倒计时只接收页面共享时钟；组件自身不创建 interval，避免 50 行产生数百个定时器。
+const formatQuotaCountdown = (resetAt: string | null, nowMS: number) => {
+  if (!resetAt) return null;
+  const resetMS = new Date(resetAt).getTime();
+  if (!Number.isFinite(resetMS)) return null;
+  const remainingMinutes = Math.max(0, Math.floor((resetMS - nowMS) / 60_000));
+  const days = Math.floor(remainingMinutes / 1440);
+  const hours = Math.floor((remainingMinutes % 1440) / 60);
+  const minutes = remainingMinutes % 60;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+};
+
+const useMinuteClock = () => {
+  const [nowMS, setNowMS] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMS(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return nowMS;
+};
+
 // 独立导出便于对实际渲染的请求数、Token、金额单位和可访问提示做回归测试。
-export function UsageWindowCell({ value }: { value: unknown }) {
+export function UsageWindowCell({ value, quotaValue, nowMS = 0 }: { value: unknown; quotaValue?: unknown; nowMS?: number }) {
   const { t } = useTranslation();
   const windows = asUsageWindows(value);
   if (!windows) return <span className={styles.usageWindowMissing}>—</span>;
+  const quota = asQuotaWindows(quotaValue);
+  const isStale = quota?.status === 'stale';
   const rows: Array<{ key: keyof CPARefillUsageWindows; label: string; value: CPARefillUsageWindow }> = [
     { key: 'five_hour', label: '5h', value: windows.five_hour },
     { key: 'seven_day', label: '7d', value: windows.seven_day },
@@ -157,30 +226,79 @@ export function UsageWindowCell({ value }: { value: unknown }) {
   return (
     <div className={styles.usageWindowCell}>
       <div className={styles.usageWindowHeader}>
-        <span>{t('cpa_refill.usage_windows_local_label')}</span>
+        <span>{t('cpa_refill.usage_windows_summary_label')}</span>
         <QuotaInfoTooltip
           ariaLabel={t('cpa_refill.usage_windows_local_hint')}
-          rows={[{
-            key: 'local-window',
-            label: t('cpa_refill.fields.usage_windows'),
-            value: t('cpa_refill.usage_windows_local_hint'),
-          }]}
+          rows={[
+            {
+              key: 'local-window',
+              label: t('cpa_refill.usage_windows_local_label'),
+              value: t('cpa_refill.usage_windows_local_hint'),
+            },
+            {
+              key: 'official-quota',
+              label: t('cpa_refill.usage_quota_official_label'),
+              value: t('cpa_refill.usage_quota_official_hint'),
+            },
+          ]}
         />
       </div>
       {rows.map((row) => {
         const rangeLabel = t('cpa_refill.usage_statistics_range', { range: formatUsageRange(row.value) });
+        const quotaWindow = quota?.[row.key] ?? null;
+        const usedPercent = quotaWindow ? quotaWindow.used_milli_percent / 1000 : null;
+        // 剩余值使用 Controller 显式 DTO；异常大于 100 的已用值仍保留，视觉宽度则钳制到 100%。
+        const remainingPercent = quotaWindow ? Math.max(0, quotaWindow.remaining_milli_percent / 1000) : null;
+        const progressWidth = usedPercent === null ? 0 : Math.max(0, Math.min(100, usedPercent));
+        const countdown = quotaWindow ? formatQuotaCountdown(quotaWindow.reset_at, nowMS) : null;
+        const severityClass = usedPercent === null
+          ? ''
+          : usedPercent >= 100
+            ? styles.usageQuotaCritical
+            : usedPercent >= 80
+              ? styles.usageQuotaWarning
+              : '';
+        const quotaClassName = [
+          styles.usageQuotaRow,
+          severityClass,
+          isStale ? styles.usageQuotaStale : '',
+        ].filter(Boolean).join(' ');
         return (
           <div className={styles.usageWindowRow} key={row.key} role="group" title={rangeLabel} aria-label={rangeLabel}>
             <div className={styles.usageWindowMetrics}>
-              <span title={t('cpa_refill.usage_requests')}>{formatCompactCount(row.value.requests)} req</span>
+              <span title={t('cpa_refill.usage_requests')}>{`${formatCompactCount(row.value.requests)} req`}</span>
               <span title={t('cpa_refill.usage_tokens')}>{formatCompactCount(row.value.tokens)}</span>
               <span title={t('cpa_refill.usage_account_cost')}>{formatCompactMicroUSD(row.value.cost_micro_usd)}</span>
             </div>
-            <div className={styles.usageWindowRange}>
+            <div className={quotaClassName}>
               <strong className={row.key === 'five_hour' ? styles.fiveHourBadge : styles.sevenDayBadge}>{row.label}</strong>
-              <i className={`${styles.usageWindowTrack} ${row.key === 'five_hour' ? styles.fiveHourTrack : styles.sevenDayTrack}`} aria-hidden="true"><span /></i>
-              <small>{t('cpa_refill.usage_rolling_window')}</small>
+              {quotaWindow && usedPercent !== null && remainingPercent !== null ? (
+                <>
+                  <i
+                    className={`${styles.usageWindowTrack} ${row.key === 'five_hour' ? styles.fiveHourTrack : styles.sevenDayTrack}`}
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={usedPercent}
+                    aria-label={t('cpa_refill.usage_quota_progress', { window: row.label })}
+                  >
+                    <span style={{ width: `${progressWidth}%` }} />
+                  </i>
+                  <span className={styles.usageQuotaUsed}>{formatQuotaPercent(usedPercent)}%</span>
+                  <small className={styles.usageQuotaRemaining}>
+                    {`${formatQuotaPercent(remainingPercent)}% ${t('cpa_refill.usage_remaining_label')}`}
+                  </small>
+                  <small className={styles.usageQuotaReset}>
+                    {countdown
+                      ? t('cpa_refill.usage_resets_in', { time: countdown })
+                      : t('cpa_refill.usage_reset_unknown')}
+                  </small>
+                </>
+              ) : (
+                <small className={styles.usageQuotaUnavailable}>{t('cpa_refill.usage_quota_unavailable')} · —</small>
+              )}
             </div>
+            {isStale && <small className={styles.usageQuotaStaleLabel}>{t('cpa_refill.usage_quota_stale')}</small>}
           </div>
         );
       })}
@@ -237,6 +355,7 @@ const actionKey = (prefix: string) => {
 
 export function CPARefillPage() {
   const { t } = useTranslation();
+  const quotaClockMS = useMinuteClock();
   const showNotification = useNotificationStore((state) => state.showNotification);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [overview, setOverview] = useState<CPARefillOverview | null>(null);
@@ -567,7 +686,7 @@ export function CPARefillPage() {
           <div className={styles.tableWrap}>
             <table><thead><tr>{columns[activeTab].map((column) => <th key={column}>{t(`cpa_refill.fields.${column}`, { defaultValue: column })}</th>)}{(activeTab === 'accounts' || activeTab === 'orders') && <th>{t('cpa_refill.operation')}</th>}</tr></thead>
               <tbody>{items.map((item, index) => <tr key={stringValue(item.id) + index}>{columns[activeTab].map((column) => column === 'usage_windows'
-                ? <td key={column} className={styles.usageWindowTableCell}><UsageWindowCell value={item[column]} /></td>
+                ? <td key={column} className={styles.usageWindowTableCell}><UsageWindowCell value={item[column]} quotaValue={item.quota_windows} nowMS={quotaClockMS} /></td>
                 : <td key={column} title={displayValue(column, item[column], t)}>{displayValue(column, item[column], t)}</td>)}{(activeTab === 'accounts' || activeTab === 'orders') && <td><button type="button" className={styles.detailButton} onClick={() => void openDetail(item)}>{t('cpa_refill.view_detail')}</button></td>}</tr>)}</tbody>
             </table>
             {!listLoading && items.length === 0 && <div className={styles.empty}>{t('cpa_refill.empty')}</div>}

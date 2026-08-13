@@ -20,7 +20,7 @@ vi.mock('@/components/quota', () => ({
 }));
 
 describe('UsageWindowCell', () => {
-  it('renders request, token and micro USD values for both local windows', () => {
+  it('renders local statistics and official quota progress for both windows', () => {
     let renderer!: ReactTestRenderer;
     act(() => {
       renderer = create(
@@ -39,6 +39,25 @@ describe('UsageWindowCell', () => {
               cost_micro_usd: 22_660_000,
               window_start: '2026-08-06T12:00:00Z',
               window_end: '2026-08-13T12:00:00Z',
+            },
+          }}
+          quotaValue={{
+            source: 'chatgpt_wham',
+            status: 'fresh',
+            error_code: '',
+            plan_type: 'pro',
+            fetched_at: '2026-08-13T12:00:00Z',
+            five_hour: {
+              used_milli_percent: 16000,
+              remaining_milli_percent: 84000,
+              window_seconds: 18000,
+              reset_at: '2099-08-13T16:00:00Z',
+            },
+            seven_day: {
+              used_milli_percent: 28500,
+              remaining_milli_percent: 71500,
+              window_seconds: 604800,
+              reset_at: '2099-08-20T11:00:00Z',
             },
           }}
         />
@@ -63,7 +82,7 @@ describe('UsageWindowCell', () => {
       })
     );
 
-    // 本地滚动窗口只能表达统计范围，不能伪装成官方配额进度或 reset 倒计时。
+    // 本地统计与官方配额分开取数；进度条只使用 quotaValue 的真实百分比。
     const windowRows = renderer.root.findAll(
       (node) =>
         typeof node.props['aria-label'] === 'string' &&
@@ -76,16 +95,15 @@ describe('UsageWindowCell', () => {
       expect(row.props.title).toBe(row.props['aria-label']);
       expect(row.props.role).toBe('group');
     }
-    const tracks = renderer.root.findAll(
-      (node) => node.type === 'i' && node.findAll((child) => child.type === 'span').length === 1
-    );
+    const tracks = renderer.root.findAllByProps({ role: 'progressbar' });
     expect(tracks).toHaveLength(2);
-    expect(String(tracks[0].props.className)).toContain('fiveHourTrack');
-    expect(String(tracks[1].props.className)).toContain('sevenDayTrack');
-    expect(visibleText).toContain('cpa_refill.usage_rolling_window');
-    expect(renderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(0);
-    expect(output).not.toContain('%');
-    expect(output).not.toContain('usage_remaining_time');
+    expect(tracks[0].props['aria-valuenow']).toBe(16);
+    expect(tracks[1].props['aria-valuenow']).toBe(28.5);
+    expect(output).toContain('16%');
+    expect(output).toContain('84%');
+    expect(output).toContain('28.5%');
+    expect(output).toContain('71.5%');
+    expect(output).toContain('cpa_refill.usage_resets_in');
   });
 
   it('renders a dash when a usage window contains invalid values', () => {
@@ -115,5 +133,91 @@ describe('UsageWindowCell', () => {
 
     expect(JSON.stringify(renderer.toJSON())).toContain('—');
     expect(renderer.root.findAll((node) => node.props.role === 'group')).toHaveLength(0);
+  });
+
+  it('keeps local statistics but does not draw fake progress when quota is unavailable', () => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <UsageWindowCell
+          value={{
+            five_hour: { requests: 3, tokens: 89000, cost_micro_usd: 20000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+            seven_day: { requests: 3, tokens: 89000, cost_micro_usd: 20000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+          }}
+          quotaValue={null}
+        />
+      );
+    });
+    const output = JSON.stringify(renderer.toJSON());
+    expect(output).toContain('3 req');
+    expect(output).toContain('A $0.02');
+    expect(output).toContain('cpa_refill.usage_quota_unavailable');
+    expect(renderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(0);
+  });
+
+  it('marks stale quota snapshots instead of presenting them as current', () => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <UsageWindowCell
+          value={{
+            five_hour: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+            seven_day: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+          }}
+          quotaValue={{
+            source: 'chatgpt_wham', status: 'stale', error_code: 'rate_limited', plan_type: 'pro', fetched_at: '2026-08-13T10:00:00Z',
+            five_hour: { used_milli_percent: 16000, remaining_milli_percent: 84000, window_seconds: 18000, reset_at: '2099-08-13T16:00:00Z' },
+            seven_day: null,
+          }}
+        />
+      );
+    });
+    expect(JSON.stringify(renderer.toJSON())).toContain('cpa_refill.usage_quota_stale');
+    expect(renderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(1);
+  });
+
+  it('fails closed for invalid quota data and clamps over-limit progress width', () => {
+    const usage = {
+      five_hour: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+      seven_day: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+    };
+    let invalidRenderer!: ReactTestRenderer;
+    act(() => {
+      invalidRenderer = create(
+        <UsageWindowCell
+          value={usage}
+          quotaValue={{
+            source: 'chatgpt_wham', status: 'fresh', error_code: '', plan_type: 'pro', fetched_at: '2026-08-13T12:00:00Z',
+            five_hour: { used_milli_percent: Number.NaN, remaining_milli_percent: 0, window_seconds: 18000, reset_at: null },
+            seven_day: null,
+          }}
+        />
+      );
+    });
+    expect(invalidRenderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(0);
+    expect(JSON.stringify(invalidRenderer.toJSON())).toContain('cpa_refill.usage_quota_unavailable');
+
+    let overLimitRenderer!: ReactTestRenderer;
+    act(() => {
+      overLimitRenderer = create(
+        <UsageWindowCell
+          value={usage}
+          quotaValue={{
+            source: 'chatgpt_wham', status: 'fresh', error_code: '', plan_type: 'pro', fetched_at: '2026-08-13T12:00:00Z',
+            five_hour: { used_milli_percent: 123400, remaining_milli_percent: 0, window_seconds: 18000, reset_at: null },
+            seven_day: null,
+          }}
+        />
+      );
+    });
+    const progress = overLimitRenderer.root.findByProps({ role: 'progressbar' });
+    expect(progress.props['aria-valuenow']).toBe(123.4);
+    expect(progress.findByType('span').props.style.width).toBe('100%');
+    const text = overLimitRenderer.root
+      .findAll((node) => node.type === 'span' || node.type === 'small')
+      .map((node) => node.children.filter((child) => typeof child === 'string').join(''))
+      .join('|');
+    expect(text).toContain('123.4%');
+    expect(text).toContain('0%');
   });
 });

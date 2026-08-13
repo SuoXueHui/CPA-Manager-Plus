@@ -46,12 +46,32 @@ export interface CPARefillUsageWindows {
   seven_day: CPARefillUsageWindow;
 }
 
-// 账号列表使用显式 DTO，确保用量窗口结构不会退化成任意对象。
+// ChatGPT 官方 quota 使用千分之一百分点，避免 JSON 浮点在跨服务传递时产生歧义。
+export interface CPARefillQuotaWindow {
+  used_milli_percent: number;
+  remaining_milli_percent: number;
+  window_seconds: number;
+  reset_at: string | null;
+}
+
+// 官方 quota 与 Controller 本地 usage 分开建模，禁止前端用 Token 或金额推算配额。
+export interface CPARefillQuotaWindows {
+  source: string;
+  status: string;
+  error_code: string;
+  plan_type: string;
+  fetched_at: string;
+  five_hour: CPARefillQuotaWindow | null;
+  seven_day: CPARefillQuotaWindow | null;
+}
+
+// 账号列表使用显式 DTO，确保本地用量和官方配额结构不会退化成任意对象。
 export interface CPARefillAccountListItem extends Record<string, unknown> {
   id: number;
   email: string;
   status: string;
   usage_windows?: CPARefillUsageWindows;
+  quota_windows?: CPARefillQuotaWindows | null;
 }
 
 export interface CPARefillListQuery {

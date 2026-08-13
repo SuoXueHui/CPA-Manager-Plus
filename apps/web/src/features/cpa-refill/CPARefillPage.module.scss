@@ -36,22 +36,30 @@
 .tableWrap th { text-align: left; padding: 11px 14px; background: var(--surface-subtle); color: var(--text-secondary); font-size: 12px; font-weight: 750; }
 .tableWrap td { max-width: 260px; padding: 12px 14px; border-top: 1px solid var(--border-subtle); color: var(--text-primary); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tableWrap tbody tr:hover { background: color-mix(in srgb, #0ca678 5%, var(--surface-color)); }
-.tableWrap .usageWindowTableCell { width: 350px; max-width: 390px; overflow: visible; white-space: normal; }
-.usageWindowCell { display: grid; gap: 8px; min-width: 320px; padding: 2px 0; }
+.tableWrap .usageWindowTableCell { width: 410px; max-width: 450px; overflow: visible; white-space: normal; }
+.usageWindowCell { display: grid; gap: 8px; min-width: 380px; padding: 2px 0; }
 .usageWindowHeader { display: flex; align-items: center; gap: 5px; color: var(--text-secondary); font-size: 10px; font-weight: 650; }
 .usageWindowRow { display: grid; gap: 6px; padding: 8px 9px; border: 1px solid color-mix(in srgb, var(--border-subtle) 82%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--surface-subtle) 58%, transparent); transition: border-color .16s ease, background-color .16s ease; }
 .usageWindowRow:hover { border-color: color-mix(in srgb, #0ca678 24%, var(--border-subtle)); background: color-mix(in srgb, var(--surface-subtle) 84%, transparent); }
 .usageWindowMetrics { display: flex; gap: 6px; align-items: center; }
 .usageWindowMetrics span { padding: 4px 7px; border: 1px solid color-mix(in srgb, var(--border-subtle) 72%, transparent); border-radius: 7px; background: var(--surface-color); color: var(--text-secondary); font-size: 10px; font-weight: 650; line-height: 1; white-space: nowrap; box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 4%, transparent); }
-.usageWindowRange { display: flex; gap: 8px; align-items: center; min-width: 0; }
-.usageWindowRange strong { flex: 0 0 34px; padding: 3px 4px; border-radius: 7px; text-align: center; font-size: 11px; font-weight: 800; }
+.usageQuotaRow { display: grid; grid-template-columns: 34px 82px 42px minmax(58px, auto) minmax(72px, auto); gap: 7px; align-items: center; min-width: 0; }
+.usageQuotaRow strong { padding: 3px 4px; border-radius: 7px; text-align: center; font-size: 11px; font-weight: 800; }
 .fiveHourBadge { background: color-mix(in srgb, #6366f1 15%, var(--surface-color)); color: #4f46e5; }
 .sevenDayBadge { background: color-mix(in srgb, #10b981 15%, var(--surface-color)); color: #07845f; }
-.usageWindowTrack { flex: 0 0 74px; height: 6px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--text-secondary) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-secondary) 7%, transparent); }
-.usageWindowTrack span { display: block; width: 100%; height: 100%; border-radius: inherit; opacity: .84; }
+.usageWindowTrack { width: 82px; height: 8px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--text-secondary) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-secondary) 9%, transparent); }
+.usageWindowTrack span { display: block; height: 100%; border-radius: inherit; opacity: .92; transition: width .2s ease; }
 .fiveHourTrack span { background: linear-gradient(90deg, #6366f1, #818cf8); }
 .sevenDayTrack span { background: linear-gradient(90deg, #10b981, #34d399); }
-.usageWindowRange small { min-width: 0; overflow: hidden; color: var(--text-secondary); font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.usageQuotaUsed { text-align: right; color: var(--text-primary); font-size: 11px; font-weight: 780; white-space: nowrap; }
+.usageQuotaRemaining, .usageQuotaReset, .usageQuotaUnavailable { min-width: 0; color: var(--text-secondary); font-size: 10px; font-weight: 620; white-space: nowrap; }
+.usageQuotaUnavailable { grid-column: 2 / -1; color: color-mix(in srgb, var(--text-secondary) 76%, transparent); }
+.usageQuotaWarning .usageWindowTrack span { background: #f59e0b; }
+.usageQuotaWarning .usageQuotaUsed { color: #b45309; }
+.usageQuotaCritical .usageWindowTrack span { background: #ef4444; }
+.usageQuotaCritical .usageQuotaUsed, .usageQuotaCritical .usageQuotaRemaining { color: #dc2626; }
+.usageQuotaStale { filter: grayscale(.55); opacity: .58; }
+.usageQuotaStaleLabel { justify-self: end; margin-top: -2px; color: #a16207; font-size: 9px; font-weight: 750; }
 .usageWindowMissing { color: var(--text-secondary); }
 .detailButton { border: 0; background: transparent; color: #0a8f63; font-weight: 700; cursor: pointer; }
 .empty { padding: 54px 20px; text-align: center; color: var(--text-secondary); }
