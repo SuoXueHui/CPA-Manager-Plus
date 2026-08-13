@@ -260,6 +260,9 @@
     "usage_requests": "请求数",
     "usage_tokens": "Token",
     "usage_account_cost": "账号计费金额",
+    "usage_remaining": "剩余 {{percent}}%",
+    "usage_remaining_time": "{{duration}} 后到达当前统计窗口边界",
+    "usage_statistics_range": "本地统计范围：{{range}}",
     "fields": {
       "id": "ID",
       "masked_email": "脱敏账号",
