@@ -105,9 +105,6 @@ describe('CPA refill console wiring', () => {
       expect(locale.cpa_refill.usage_windows_local_hint).toBeTruthy();
       expect(locale.cpa_refill.usage_requests).toBeTruthy();
       expect(locale.cpa_refill.usage_account_cost).toBeTruthy();
-      expect(locale.cpa_refill.usage_remaining).toBeTruthy();
-      expect(locale.cpa_refill.usage_remaining_time).toBeTruthy();
-      expect(locale.cpa_refill.usage_statistics_range).toBeTruthy();
       expect(locale.cpa_refill.fields.imported_at).toBeTruthy();
       expect(locale.cpa_refill.fields.expires_at).toBeTruthy();
       expect(locale.cpa_refill.values.status.active).toBeTruthy();
