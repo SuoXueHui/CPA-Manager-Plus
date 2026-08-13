@@ -402,7 +402,9 @@ func (m *Manager) consumeHTTPBatch(ctx context.Context, cfg RuntimeConfig, clien
 }
 
 func (m *Manager) consumeHTTPClaimBatch(ctx context.Context, cfg RuntimeConfig, client *httpqueue.Client) (bool, error) {
-	claim, err := client.Claim(ctx, m.batchSize(cfg), 30)
+	// Keep the lease comfortably above normal SQLite busy handling and account
+	// snapshot enrichment so another collector cannot reclaim an active batch.
+	claim, err := client.Claim(ctx, m.batchSize(cfg), 120)
 	if err != nil {
 		return false, err
 	}
