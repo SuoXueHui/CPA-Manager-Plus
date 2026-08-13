@@ -152,20 +152,23 @@ export function UsageWindowCell({ value }: { value: unknown }) {
           }]}
         />
       </div>
-      {rows.map((row) => (
-        <div className={styles.usageWindowRow} key={row.key}>
-          <div className={styles.usageWindowMetrics}>
-            <span title={t('cpa_refill.usage_requests')}>{formatCompactCount(row.value.requests)} req</span>
-            <span title={t('cpa_refill.usage_tokens')}>{formatCompactCount(row.value.tokens)}</span>
-            <span title={t('cpa_refill.usage_account_cost')}>{formatCompactMicroUSD(row.value.cost_micro_usd)}</span>
+      {rows.map((row) => {
+        const rangeLabel = t('cpa_refill.usage_statistics_range', { range: formatUsageRange(row.value) });
+        return (
+          <div className={styles.usageWindowRow} key={row.key} title={rangeLabel} aria-label={rangeLabel}>
+            <div className={styles.usageWindowMetrics}>
+              <span title={t('cpa_refill.usage_requests')}>{formatCompactCount(row.value.requests)} req</span>
+              <span title={t('cpa_refill.usage_tokens')}>{formatCompactCount(row.value.tokens)}</span>
+              <span title={t('cpa_refill.usage_account_cost')}>{formatCompactMicroUSD(row.value.cost_micro_usd)}</span>
+            </div>
+            <div className={styles.usageWindowRange}>
+              <strong className={row.key === 'five_hour' ? styles.fiveHourBadge : styles.sevenDayBadge}>{row.label}</strong>
+              <i className={`${styles.usageWindowTrack} ${row.key === 'five_hour' ? styles.fiveHourTrack : styles.sevenDayTrack}`} aria-hidden="true"><span /></i>
+              <small>{t('cpa_refill.usage_rolling_window')}</small>
+            </div>
           </div>
-          <div className={styles.usageWindowRange}>
-            <strong className={row.key === 'five_hour' ? styles.fiveHourBadge : styles.sevenDayBadge}>{row.label}</strong>
-            <i aria-hidden="true" />
-            <small>{formatUsageRange(row.value)}</small>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

@@ -59,5 +59,24 @@ describe('UsageWindowCell', () => {
         tabIndex: 0,
       })
     );
+
+    // 本地滚动窗口只能表达统计范围，不能伪装成官方配额进度或 reset 倒计时。
+    const windowRows = renderer.root.findAll(
+      (node) =>
+        typeof node.props['aria-label'] === 'string' &&
+        node.props['aria-label'].includes('cpa_refill.usage_statistics_range')
+    );
+    expect(windowRows).toHaveLength(2);
+    for (const row of windowRows) {
+      expect(row.props['aria-label']).toContain('cpa_refill.usage_statistics_range');
+      expect(row.props.title).toContain('cpa_refill.usage_statistics_range');
+    }
+    const tracks = renderer.root.findAll(
+      (node) => node.type === 'i' && node.findAll((child) => child.type === 'span').length === 1
+    );
+    expect(tracks).toHaveLength(2);
+    expect(renderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(0);
+    expect(output).not.toContain('%');
+    expect(output).not.toContain('usage_remaining_time');
   });
 });

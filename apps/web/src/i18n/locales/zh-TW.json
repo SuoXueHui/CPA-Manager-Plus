@@ -260,6 +260,8 @@
     "usage_requests": "請求數",
     "usage_tokens": "Token",
     "usage_account_cost": "帳號計費金額",
+    "usage_rolling_window": "滾動視窗",
+    "usage_statistics_range": "本地統計範圍：{{range}}",
     "fields": {
       "id": "ID",
       "masked_email": "脫敏帳號",
