@@ -38,6 +38,7 @@ import type { AuthFileStatusBarData } from '@/features/authFiles/hooks/useAuthFi
 import type { AntigravitySubscriptionState } from '@/features/authFiles/hooks/useAntigravitySubscriptions';
 import type { AuthFileCodexStatusBadge } from '@/features/authFiles/model/authFilesPageModel';
 import { getAccountAutomationPresentation } from '@/features/authFiles/model/accountAutomationPresentation';
+import { getAccountPlanPresentation } from '@/features/authFiles/model/accountPlanPresentation';
 import { getQuotaCooldownPresentation } from '@/features/authFiles/model/quotaCooldownPresentation';
 import type { AccountActionCandidate, QuotaCooldownInfo } from '@/services/api/usageService';
 import { AuthFileQuotaSection } from '@/features/authFiles/components/AuthFileQuotaSection';
@@ -155,6 +156,14 @@ export function AuthFileCard(props: AuthFileCardProps) {
   const accountAutomationPresentation = accountActionCandidate
     ? getAccountAutomationPresentation(accountActionCandidate)
     : null;
+  const accountPlanPresentation = getAccountPlanPresentation(file);
+  const accountPlanLabel = accountPlanPresentation
+    ? accountPlanPresentation.labelKey
+      ? t(accountPlanPresentation.labelKey, {
+          defaultValue: accountPlanPresentation.defaultLabel,
+        })
+      : accountPlanPresentation.defaultLabel
+    : '';
 
   const quotaType = resolveQuotaType(file);
   const showQuotaLayout = Boolean(quotaType) && !isRuntimeOnly && !compact;
@@ -283,6 +292,19 @@ export function AuthFileCard(props: AuthFileCardProps) {
                   {typeLabel}
                 </span>
                 <span className={`${styles.stateBadge} ${stateBadgeClass}`}>{stateLabel}</span>
+                {accountPlanPresentation && accountPlanLabel && (
+                  <span
+                    className={`${styles.subscriptionBadge} ${
+                      accountPlanPresentation.tone === 'free'
+                        ? styles.subscriptionBadgeFree
+                        : styles.subscriptionBadgePaid
+                    }`}
+                    data-account-plan={accountPlanPresentation.planType}
+                    title={accountPlanLabel}
+                  >
+                    {accountPlanLabel}
+                  </span>
+                )}
                 {subscriptionBadgeLabel && (
                   <span
                     className={`${styles.subscriptionBadge} ${subscriptionBadgeClass}`}

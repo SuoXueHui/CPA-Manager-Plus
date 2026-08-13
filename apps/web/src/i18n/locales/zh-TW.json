@@ -1492,6 +1492,7 @@
     "reset_at": "重置 {{time}}",
     "product_usage": "{{product}} 使用",
     "plan_label": "方案",
+    "plan_free": "Free",
     "plan_supergrok": "SuperGrok",
     "plan_supergrok_heavy": "SuperGrok Heavy",
     "official_api_plan": "官方 API",

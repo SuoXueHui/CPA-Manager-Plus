@@ -41,6 +41,10 @@ export interface AuthFileItem {
   lastRequestAtMs?: number;
   success?: unknown;
   failed?: unknown;
+  plan_type?: string;
+  planType?: string;
+  xai_plan_type?: string;
+  xaiPlanType?: string;
   project_id?: string;
   projectId?: string;
   gemini_virtual_project?: string;

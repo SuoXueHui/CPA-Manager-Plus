@@ -1492,6 +1492,7 @@
     "reset_at": "Сброс {{time}}",
     "product_usage": "Использование {{product}}",
     "plan_label": "План",
+    "plan_free": "Free",
     "plan_supergrok": "SuperGrok",
     "plan_supergrok_heavy": "SuperGrok Heavy",
     "official_api_plan": "Официальный API",

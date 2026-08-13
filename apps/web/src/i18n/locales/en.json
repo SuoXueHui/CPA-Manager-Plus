@@ -1499,6 +1499,7 @@
     "reset_at": "Resets {{time}}",
     "product_usage": "{{product}} usage",
     "plan_label": "Plan",
+    "plan_free": "Free",
     "plan_supergrok": "SuperGrok",
     "plan_supergrok_heavy": "SuperGrok Heavy",
     "official_api_plan": "Official API",
