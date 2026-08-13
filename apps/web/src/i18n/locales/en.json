@@ -260,6 +260,8 @@
     "usage_requests": "Requests",
     "usage_tokens": "Tokens",
     "usage_account_cost": "Account billed amount",
+    "usage_rolling_window": "Rolling window",
+    "usage_statistics_range": "Local statistics range: {{range}}",
     "fields": {
       "id": "ID",
       "masked_email": "Masked Account",

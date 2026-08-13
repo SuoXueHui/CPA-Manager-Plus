@@ -37,17 +37,21 @@
 .tableWrap td { max-width: 260px; padding: 12px 14px; border-top: 1px solid var(--border-subtle); color: var(--text-primary); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tableWrap tbody tr:hover { background: color-mix(in srgb, #0ca678 5%, var(--surface-color)); }
 .tableWrap .usageWindowTableCell { width: 350px; max-width: 390px; overflow: visible; white-space: normal; }
-.usageWindowCell { display: grid; gap: 10px; min-width: 320px; padding: 3px 0; }
+.usageWindowCell { display: grid; gap: 8px; min-width: 320px; padding: 2px 0; }
 .usageWindowHeader { display: flex; align-items: center; gap: 5px; color: var(--text-secondary); font-size: 10px; font-weight: 650; }
-.usageWindowRow { display: grid; gap: 5px; }
+.usageWindowRow { display: grid; gap: 6px; padding: 8px 9px; border: 1px solid color-mix(in srgb, var(--border-subtle) 82%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--surface-subtle) 58%, transparent); transition: border-color .16s ease, background-color .16s ease; }
+.usageWindowRow:hover { border-color: color-mix(in srgb, #0ca678 24%, var(--border-subtle)); background: color-mix(in srgb, var(--surface-subtle) 84%, transparent); }
 .usageWindowMetrics { display: flex; gap: 6px; align-items: center; }
-.usageWindowMetrics span { padding: 4px 7px; border-radius: 7px; background: var(--surface-subtle); color: var(--text-secondary); font-size: 10px; font-weight: 650; line-height: 1; white-space: nowrap; }
+.usageWindowMetrics span { padding: 4px 7px; border: 1px solid color-mix(in srgb, var(--border-subtle) 72%, transparent); border-radius: 7px; background: var(--surface-color); color: var(--text-secondary); font-size: 10px; font-weight: 650; line-height: 1; white-space: nowrap; box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 4%, transparent); }
 .usageWindowRange { display: flex; gap: 8px; align-items: center; min-width: 0; }
 .usageWindowRange strong { flex: 0 0 34px; padding: 3px 4px; border-radius: 7px; text-align: center; font-size: 11px; font-weight: 800; }
 .fiveHourBadge { background: color-mix(in srgb, #6366f1 15%, var(--surface-color)); color: #4f46e5; }
 .sevenDayBadge { background: color-mix(in srgb, #10b981 15%, var(--surface-color)); color: #07845f; }
-.usageWindowRange i { flex: 0 0 42px; height: 2px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--text-secondary) 24%, transparent); }
-.usageWindowRange small { min-width: 0; overflow: hidden; color: var(--text-secondary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.usageWindowTrack { flex: 0 0 74px; height: 6px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--text-secondary) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-secondary) 7%, transparent); }
+.usageWindowTrack span { display: block; width: 44%; height: 100%; border-radius: inherit; opacity: .84; }
+.fiveHourTrack span { background: linear-gradient(90deg, #6366f1, #818cf8); }
+.sevenDayTrack span { background: linear-gradient(90deg, #10b981, #34d399); }
+.usageWindowRange small { min-width: 0; overflow: hidden; color: var(--text-secondary); font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .usageWindowMissing { color: var(--text-secondary); }
 .detailButton { border: 0; background: transparent; color: #0a8f63; font-weight: 700; cursor: pointer; }
 .empty { padding: 54px 20px; text-align: center; color: var(--text-secondary); }
