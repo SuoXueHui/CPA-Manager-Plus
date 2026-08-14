@@ -52,6 +52,11 @@ describe('CPA refill console wiring', () => {
     expect(pageSource).toContain("resource === 'orders' || resource === 'recoveries'");
     expect(pageSource).toContain("search_account_placeholder");
     expect(pageSource).toContain('value="codex"');
+    expect(pageSource).toContain('grouped: resource === \'accounts\' ? true : undefined');
+    expect(pageSource).toContain('credential_count');
+    expect(pageSource).toContain('credential_ids');
+    expect(pageSource).toContain('merged');
+    expect(pageSource).toContain('cpa_refill.account_merge_hint');
   });
 
   it('keeps local usage window formatting bounded and resilient', () => {
@@ -108,6 +113,10 @@ describe('CPA refill console wiring', () => {
       expect(locale.cpa_refill.usage_remaining).toBeTruthy();
       expect(locale.cpa_refill.usage_remaining_time).toBeTruthy();
       expect(locale.cpa_refill.usage_statistics_range).toBeTruthy();
+      expect(locale.cpa_refill.account_merge_title).toBeTruthy();
+      expect(locale.cpa_refill.account_merge_hint).toBeTruthy();
+      expect(locale.cpa_refill.account_merged_badge).toBeTruthy();
+      expect(locale.cpa_refill.account_merged_detail_hint).toBeTruthy();
       expect(locale.cpa_refill.fields.imported_at).toBeTruthy();
       expect(locale.cpa_refill.fields.expires_at).toBeTruthy();
       expect(locale.cpa_refill.values.status.active).toBeTruthy();

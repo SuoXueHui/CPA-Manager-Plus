@@ -51,6 +51,11 @@ export interface CPARefillAccountListItem extends Record<string, unknown> {
   id: number;
   email: string;
   status: string;
+  // grouped=true 时由 Controller 返回逻辑账号聚合信息；凭证仍保留为摘要，便于追溯成本来源。
+  merged?: boolean;
+  credential_count?: number;
+  credential_ids?: number[];
+  credentials?: Array<Record<string, unknown>>;
   usage_windows?: CPARefillUsageWindows;
 }
 
@@ -65,6 +70,8 @@ export interface CPARefillListQuery {
   to?: string;
   limit?: number;
   cursor?: string;
+  // 账号列表默认开启，必须在 Controller 分组后再分页，避免前端分页内合并造成漏算。
+  grouped?: boolean;
 }
 
 export interface CPARefillListResponse<TItem extends Record<string, unknown> = Record<string, unknown>> {

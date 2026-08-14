@@ -1,6 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
-import { UsageWindowCell } from './CPARefillPage';
+import { AccountIdentityCell, AccountStatusCell, UsageWindowCell } from './CPARefillPage';
 
 vi.mock('react-i18next', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-i18next')>();
@@ -17,6 +17,25 @@ vi.mock('@/components/quota', () => ({
 }));
 
 describe('UsageWindowCell', () => {
+  it('marks grouped credentials without averaging their amount', () => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <AccountIdentityCell
+          item={{ email: 'same@example.com', merged: true, credential_count: 2, credential_ids: [42, 41] }}
+        />
+      );
+    });
+    const output = JSON.stringify(renderer.toJSON());
+    expect(output).toContain('same@example.com');
+    expect(output).toContain('cpa_refill.account_merged_badge');
+
+    act(() => {
+      renderer = create(<AccountStatusCell item={{ status: 'active', status_summary: '1 active / 1 disabled' }} />);
+    });
+    expect(JSON.stringify(renderer.toJSON())).toContain('1 active / 1 disabled');
+  });
+
   it('renders an explicit remaining-time progress bar instead of a decorative line', () => {
     const now = Date.now();
     let renderer!: ReactTestRenderer;
