@@ -228,7 +228,7 @@ export function UsageWindowCell({ value }: { value: unknown }) {
           <div className={styles.usageWindowMetrics}>
             <span title={t('cpa_refill.usage_requests')}>{formatCompactCount(row.value.requests)} req</span>
             <span title={t('cpa_refill.usage_tokens')}>{formatCompactCount(row.value.tokens)}</span>
-            <span title={t('cpa_refill.usage_account_cost')}>{formatCompactMicroUSD(row.value.cost_micro_usd)}</span>
+            <span title={`${t('cpa_refill.usage_account_cost')}: ${formatMicroUSD(row.value.cost_micro_usd)}`}>{formatCompactMicroUSD(row.value.cost_micro_usd)}</span>
           </div>
           <div className={styles.usageWindowRange}>
             <strong className={row.key === 'five_hour' ? styles.fiveHourBadge : styles.sevenDayBadge}>{row.label}</strong>
