@@ -56,6 +56,8 @@ describe('CPA refill console wiring', () => {
     expect(pageSource).toContain("search_account_placeholder");
     expect(pageSource).toContain('value="codex"');
     expect(pageSource).toContain("grouped: resource === 'accounts' ? true : undefined");
+    expect(pageSource).toContain('CredentialCostBreakdown');
+    expect(pageSource).toContain('credential_cost_title');
     expect(pageSource).toContain('AccountIdentityCell');
     expect(pageSource).toContain('AccountStatusCell');
     expect(pageSource).toContain('account_merge_hint');

@@ -10,6 +10,7 @@ import {
   cpaRefillApi,
   type CPARefillAction,
   type CPARefillAccountListItem,
+  type CPARefillCredentialSummary,
   type CPARefillListQuery,
   type CPARefillListResource,
   type CPARefillOverview,
@@ -140,6 +141,15 @@ const credentialIDs = (item: Record<string, unknown> | null | undefined): number
 
 const isMergedAccount = (item: Record<string, unknown> | null | undefined) =>
   Boolean(item?.merged === true || numberValue(item?.credential_count) > 1 || credentialIDs(item).length > 1);
+
+const credentialSummaries = (value: unknown): CPARefillCredentialSummary[] => {
+  if (!Array.isArray(value)) return [];
+  return value.filter((credential): credential is CPARefillCredentialSummary => {
+    if (!credential || typeof credential !== 'object') return false;
+    const id = numberValue((credential as Record<string, unknown>).id);
+    return Number.isInteger(id) && id > 0;
+  });
+};
 
 // 账号列表按逻辑账号展示；凭证数量与 ID 必须显式保留，避免管理员误以为金额被重复统计。
 export function AccountIdentityCell({ item }: { item: Record<string, unknown> }) {
@@ -340,6 +350,40 @@ export function UsageWindowCell({ value, quotaValue, nowMS = 0 }: { value: unkno
         );
       })}
     </div>
+  );
+}
+
+// 合并行展示总额，详情再按凭证拆开显示 5h/7d 金额，避免管理员只能看到一个无法追溯的合计数。
+export function CredentialCostBreakdown({ value }: { value: unknown }) {
+  const { t } = useTranslation();
+  const credentials = credentialSummaries(value);
+  if (credentials.length < 2) return null;
+  return (
+    <section className={styles.credentialCostBreakdown}>
+      <div className={styles.credentialCostHeader}>
+        <strong>{t('cpa_refill.credential_cost_title')}</strong>
+        <small>{t('cpa_refill.credential_cost_hint')}</small>
+      </div>
+      <div className={styles.credentialCostList}>
+        {credentials.map((credential) => {
+          const windows = asUsageWindows(credential.usage_windows);
+          return (
+            <article className={styles.credentialCostRow} key={credential.id}>
+              <div className={styles.credentialCostIdentity}>
+                <strong>#{credential.id}</strong>
+                <span>{localizedValue('status', credential.status, t)}</span>
+              </div>
+              {windows ? (
+                <div className={styles.credentialCostValues}>
+                  <span title={formatMicroUSD(windows.five_hour.cost_micro_usd)}><b>5h</b>{formatCompactMicroUSD(windows.five_hour.cost_micro_usd)}</span>
+                  <span title={formatMicroUSD(windows.seven_day.cost_micro_usd)}><b>7d</b>{formatCompactMicroUSD(windows.seven_day.cost_micro_usd)}</span>
+                </div>
+              ) : <small className={styles.credentialCostMissing}>{t('cpa_refill.credential_cost_missing')}</small>}
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -804,6 +848,7 @@ export function CPARefillPage() {
                   {credentialIDs(selectedAccountMeta).map((credentialID) => <code key={credentialID}>#{credentialID}</code>)}
                 </div>
                 <UsageWindowCell value={selectedAccountMeta.usage_windows} quotaValue={selectedAccountMeta.quota_windows} nowMS={quotaClockMS} />
+                <CredentialCostBreakdown value={selectedAccountMeta.credentials} />
               </section>
             )}
             <dl className={styles.detailList}>
