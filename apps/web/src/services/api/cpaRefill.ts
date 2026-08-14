@@ -135,6 +135,7 @@ export interface CPARefillPolicy {
   safety_factor_bps: number;
   unknown_capacity_ratio_bps: number;
   max_cycle_quantity: number;
+  minimum_healthy_accounts: number;
   order_hard_cap: number;
   min_order_gap_seconds: number;
   inventory_probe_seconds: number;

@@ -981,7 +981,19 @@ export function CPARefillPage() {
               <label>{t('cpa_refill.desired_mode')}<Select value={policy.desired_mode} options={['observe', 'active', 'paused'].map((value) => ({ value, label: t(`cpa_refill.values.mode.${value}`) }))} onChange={(desired_mode) => setPolicy({ ...policy, desired_mode })} triggerClassName={styles.policySelectTrigger} /></label>
               <label className={styles.checkbox}><input type="checkbox" checked={policy.purchase_enabled} onChange={(event) => setPolicy({ ...policy, purchase_enabled: event.target.checked })} />{t('cpa_refill.purchase_enabled')}</label>
               <label className={styles.checkbox}><input type="checkbox" checked={policy.recovery_enabled} onChange={(event) => setPolicy({ ...policy, recovery_enabled: event.target.checked })} />{t('cpa_refill.recovery_enabled')}</label>
-              {(['window_minutes', 'target_coverage_seconds', 'max_cycle_quantity', 'order_hard_cap', 'min_order_gap_seconds', 'inventory_probe_seconds'] as const).map((field) => <label key={field}>{t(`cpa_refill.fields.${field}`)}<input type="number" value={policy[field]} onChange={(event) => setPolicy({ ...policy, [field]: Number(event.target.value) })} /></label>)}
+              {(['window_minutes', 'target_coverage_seconds', 'minimum_healthy_accounts', 'max_cycle_quantity', 'order_hard_cap', 'min_order_gap_seconds', 'inventory_probe_seconds'] as const).map((field) => (
+                <label key={field}>
+                  {t(`cpa_refill.fields.${field}`)}
+                  <input
+                    type="number"
+                    min={field === 'minimum_healthy_accounts' ? 0 : undefined}
+                    max={field === 'minimum_healthy_accounts' ? 20 : undefined}
+                    value={policy[field]}
+                    onChange={(event) => setPolicy({ ...policy, [field]: Number(event.target.value) })}
+                  />
+                  {field === 'minimum_healthy_accounts' && <small>{t('cpa_refill.minimum_healthy_accounts_hint')}</small>}
+                </label>
+              ))}
               <Button loading={policyLoading} onClick={() => void savePolicy()}>{t('cpa_refill.save_policy')}</Button>
             </div>}
           </article>

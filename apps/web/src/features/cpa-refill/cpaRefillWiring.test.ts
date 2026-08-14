@@ -107,6 +107,17 @@ describe('CPA refill console wiring', () => {
     expect(zhCN.cpa_refill.values.reason.source_incomplete).toBeTruthy();
   });
 
+  it('configures a minimum healthy account buffer with Chinese guidance', () => {
+    expect(pageSource).toContain("'minimum_healthy_accounts'");
+    expect(pageSource).toContain('minimum_healthy_accounts_hint');
+    expect(zhCN.cpa_refill.fields.minimum_healthy_accounts).toBe('最低健康账号数');
+    expect(zhCN.cpa_refill.minimum_healthy_accounts_hint).toContain('0');
+    for (const locale of [en, ru, zhCN, zhTW]) {
+      expect(locale.cpa_refill.fields.minimum_healthy_accounts).toBeTruthy();
+      expect(locale.cpa_refill.minimum_healthy_accounts_hint).toBeTruthy();
+    }
+  });
+
   it('renders account details with the shared modal drawer and resilient long-field layout', () => {
     expect(pageSource).toContain("import { Drawer } from '@/components/ui/Drawer'");
     expect(pageSource).toContain('<Drawer');
