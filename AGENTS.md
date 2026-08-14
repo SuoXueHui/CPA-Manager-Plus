@@ -29,6 +29,7 @@ docker compose -f docker-compose.manager.yml build
 - Prefer derived monitoring data for covered ranges while retaining safe raw-data fallbacks.
 - Do not log CPA Management Keys, CPAMP Admin Keys, auth files or request credentials.
 - Keep frontend and embedded `apps/manager-server/internal/httpapi/web/management.html` assets synchronized through the existing build flow.
+- Release images must build `apps/manager-server/cmd/cpa-manager-plus`; do not substitute the similarly named CLIProxyAPIPlus server binary, which requires a different runtime configuration.
 - Keep changes small and follow the language already used in the edited file.
 
 ## Planning

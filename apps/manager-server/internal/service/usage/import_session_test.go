@@ -656,7 +656,9 @@ func TestImportSessionChunkUploadDoesNotBlockOtherSessionsAndCanBeCancelled(t *t
 	_, err = manager.WriteChunk(context.Background(), uploading.ID, 0, 4, strings.NewReader("data"))
 	requireImportSessionErrorCode(t, err, ImportSessionErrorConflict)
 
-	cancelCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// 取消会先持久化 session metadata；macOS 上的 fsync 在全量并行测试时可能超过 1 秒，
+	// 这里保留有界等待，但避免把磁盘调度抖动误判为取消链路死锁。
+	cancelCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cancelled, err := manager.Cancel(cancelCtx, uploading.ID)
 	if err != nil {
@@ -670,7 +672,7 @@ func TestImportSessionChunkUploadDoesNotBlockOtherSessionsAndCanBeCancelled(t *t
 		if result.err != nil || result.session.Status != ImportSessionStatusCancelled {
 			t.Fatalf("chunk result = %#v error = %v", result.session, result.err)
 		}
-	case <-time.After(time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("cancelled chunk upload did not finish")
 	}
 	if _, err := os.Stat(filepath.Join(manager.config.Directory, uploading.ID+".part")); !os.IsNotExist(err) {
