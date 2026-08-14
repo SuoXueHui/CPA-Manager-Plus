@@ -12,7 +12,7 @@ vi.mock('./client', () => ({
   apiClient: mocks,
 }));
 
-import { cpaRefillApi, type CPARefillOverview } from './cpaRefill';
+import { cpaRefillApi, type CPARefillOverview, type CPARefillPolicy } from './cpaRefill';
 
 beforeEach(() => {
   mocks.get.mockReset();
@@ -21,6 +21,26 @@ beforeEach(() => {
 });
 
 describe('cpaRefillApi', () => {
+  it('keeps the minimum healthy account count in the policy contract', () => {
+    const policy: CPARefillPolicy = {
+      desired_mode: 'active',
+      purchase_enabled: true,
+      recovery_enabled: true,
+      window_minutes: 60,
+      target_coverage_seconds: 1200,
+      safety_factor_bps: 13000,
+      unknown_capacity_ratio_bps: 5000,
+      max_cycle_quantity: 20,
+      minimum_healthy_accounts: 5,
+      order_hard_cap: 20,
+      min_order_gap_seconds: 30,
+      inventory_probe_seconds: 3,
+      policy_version: 20,
+    };
+
+    expect(policy.minimum_healthy_accounts).toBe(5);
+  });
+
   it('keeps operating statistics in the overview contract with integer money units', () => {
     const overview: CPARefillOverview = {
       mode: 'active',
