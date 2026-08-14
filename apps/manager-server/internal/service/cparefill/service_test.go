@@ -88,6 +88,25 @@ func TestProxyForwardsOnlyWhitelistedReadRequestWithReadToken(t *testing.T) {
 	}
 }
 
+func TestProxyPreservesGroupedAccountQuery(t *testing.T) {
+	var gotPath, gotQuery string
+	controller := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath, gotQuery = r.URL.Path, r.URL.RawQuery
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"items":[],"page":{"has_more":false}}`))
+	}))
+	defer controller.Close()
+
+	service := newTestService(t, controller.URL)
+	req := httptest.NewRequest(http.MethodGet, "/v0/management/cpa-refill/accounts?grouped=true&limit=50", nil)
+	recorder := httptest.NewRecorder()
+	service.Proxy(recorder, req)
+
+	if recorder.Code != http.StatusOK || gotPath != "/internal/v1/management/accounts" || gotQuery != "grouped=true&limit=50" {
+		t.Fatalf("grouped account proxy status=%d target=%q?%s", recorder.Code, gotPath, gotQuery)
+	}
+}
+
 func TestProxyWriteUsesWriteTokenAndManagerGeneratedAuditHeaders(t *testing.T) {
 	var gotAuthorization, gotActor, gotRequestID, gotStepUp, gotIdempotency string
 	controller := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
