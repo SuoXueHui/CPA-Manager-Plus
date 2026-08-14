@@ -549,7 +549,7 @@ export function CredentialCostBreakdown({ value }: { value: unknown }) {
                       <div className={styles.credentialCostWindowMetrics}>
                         <span title={t('cpa_refill.usage_requests')}>{formatTokenCount(row.value.requests)} req</span>
                         <span title={t('cpa_refill.usage_tokens')}>{formatTokenCount(row.value.tokens)} Token</span>
-                        <span title={t('cpa_refill.usage_account_cost')}>A {formatMicroUSD(row.value.cost_micro_usd)}</span>
+                        <span title={t('cpa_refill.usage_local_estimate_hint')}>A {formatMicroUSD(row.value.cost_micro_usd)}</span>
                       </div>
                     </div>
                   ))}

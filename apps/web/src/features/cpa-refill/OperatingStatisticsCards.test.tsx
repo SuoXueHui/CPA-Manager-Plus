@@ -8,7 +8,7 @@ const translations: Record<string, string> = {
   'cpa_refill.today_purchase_cost': '今日采购花费',
   'cpa_refill.supplier_available_balance': '供应商可用余额',
   'cpa_refill.total_tokens_consumed': '总消耗 Token',
-  'cpa_refill.total_account_usage_cost': '账号用量总金额',
+  'cpa_refill.total_account_usage_cost': '账号本地估算总金额',
   'cpa_refill.statistics_unavailable': '数据暂不可用',
   'cpa_refill.statistics_today_purchase_hint': '按最终实扣金额统计',
 };
@@ -55,7 +55,7 @@ describe('OperatingStatisticsCards', () => {
     });
 
     const output = JSON.stringify(renderer.toJSON());
-    for (const label of ['经营统计', '今日采购花费', '供应商可用余额', '总消耗 Token', '账号用量总金额']) {
+    for (const label of ['经营统计', '今日采购花费', '供应商可用余额', '总消耗 Token', '账号本地估算总金额']) {
       expect(output).toContain(label);
     }
     expect(output).toContain('¥12.34');
