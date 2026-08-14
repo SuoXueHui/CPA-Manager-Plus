@@ -59,6 +59,15 @@ export interface CPARefillUsageWindows {
   seven_day: CPARefillUsageWindow;
 }
 
+// 分组账号保留每份凭证的窗口成本，便于核对总额来源；金额仍由 Controller 按模型计价后返回。
+export interface CPARefillCredentialSummary {
+  id: number;
+  status?: string;
+  cpa_auth_id?: string;
+  import_status?: string;
+  usage_windows?: CPARefillUsageWindows;
+}
+
 // ChatGPT 官方 quota 使用千分之一百分点，避免 JSON 浮点在跨服务传递时产生歧义。
 export interface CPARefillQuotaWindow {
   used_milli_percent: number;
@@ -87,7 +96,7 @@ export interface CPARefillAccountListItem extends Record<string, unknown> {
   merged?: boolean;
   credential_count?: number;
   credential_ids?: number[];
-  credentials?: Array<Record<string, unknown>>;
+  credentials?: CPARefillCredentialSummary[];
   usage_windows?: CPARefillUsageWindows;
   quota_windows?: CPARefillQuotaWindows | null;
 }

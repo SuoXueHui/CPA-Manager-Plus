@@ -1,6 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
-import { UsageWindowCell } from './CPARefillPage';
+import { CredentialCostBreakdown, UsageWindowCell } from './CPARefillPage';
 
 vi.mock('react-i18next', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-i18next')>();
@@ -219,5 +219,45 @@ describe('UsageWindowCell', () => {
       .join('|');
     expect(text).toContain('123.4%');
     expect(text).toContain('0%');
+  });
+
+  it('shows each merged credential window cost without replacing the group total', () => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <CredentialCostBreakdown
+          value={[
+            {
+              id: 42,
+              status: 'active',
+              usage_windows: {
+                five_hour: { requests: 4, tokens: 400, cost_micro_usd: 1_250_000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+                seven_day: { requests: 9, tokens: 900, cost_micro_usd: 2_500_000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+              },
+            },
+            {
+              id: 41,
+              status: 'disabled',
+              usage_windows: {
+                five_hour: { requests: 6, tokens: 600, cost_micro_usd: 3_750_000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+                seven_day: { requests: 11, tokens: 1100, cost_micro_usd: 7_500_000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+              },
+            },
+          ]}
+        />
+      );
+    });
+
+    const output = JSON.stringify(renderer.toJSON());
+    const visibleText = renderer.root
+      .findAll((node) => node.type === 'strong' || node.type === 'span' || node.type === 'small')
+      .map((node) => node.children.filter((child) => typeof child === 'string').join(''))
+      .join('|');
+    expect(visibleText).toContain('#42');
+    expect(visibleText).toContain('#41');
+    expect(output).toContain('A $1.25');
+    expect(output).toContain('A $3.75');
+    expect(output).toContain('A $2.50');
+    expect(output).toContain('A $7.50');
   });
 });
