@@ -55,6 +55,12 @@ describe('CPA refill console wiring', () => {
     expect(pageSource).toContain("resource === 'orders' || resource === 'recoveries'");
     expect(pageSource).toContain("search_account_placeholder");
     expect(pageSource).toContain('value="codex"');
+    expect(pageSource).toContain("grouped: resource === 'accounts' ? true : undefined");
+    expect(pageSource).toContain('AccountIdentityCell');
+    expect(pageSource).toContain('AccountStatusCell');
+    expect(pageSource).toContain('account_merge_hint');
+    expect(pageSource).toContain('credential_count');
+    expect(pageSource).toContain('account_merged_detail_hint');
   });
 
   it('keeps local usage window formatting bounded and resilient', () => {

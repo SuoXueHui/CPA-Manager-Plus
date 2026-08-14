@@ -39,6 +39,7 @@ describe('cpaRefillApi', () => {
       status: 'active',
       source: 'supplier',
       import_status: 'imported',
+      grouped: true,
       limit: 50,
       cursor: 'next-page',
     });
@@ -51,6 +52,7 @@ describe('cpaRefillApi', () => {
         status: 'active',
         source: 'supplier',
         import_status: 'imported',
+        grouped: true,
         limit: 50,
         cursor: 'next-page',
       },

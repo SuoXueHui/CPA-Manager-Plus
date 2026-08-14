@@ -7,10 +7,10 @@
 ## 阶段
 
 1. [completed] 追踪认证列表数据契约、卡片渲染与现有套餐解析逻辑。
-2. [in_progress] 先补卡片级失败测试，固定 xAI/Codex、字段缺失和零额度边界。
-3. [pending] 最小实现套餐展示模型与卡片 badge。
-4. [pending] 运行定向测试、type-check、lint、全量测试与生产构建。
-5. [pending] Review 改动并更新 planning；由主代理统一提交、合并和发布。
+2. [completed] 先补卡片级失败测试，固定 xAI/Codex、字段缺失和零额度边界。
+3. [completed] 最小实现套餐展示模型与卡片 badge。
+4. [completed] 运行定向测试、type-check、lint、全量测试与生产构建。
+5. [completed] Review 改动并更新 planning；由主代理统一提交、合并和发布。
 
 ## 约束
 

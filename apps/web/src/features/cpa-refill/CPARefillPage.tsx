@@ -131,6 +131,43 @@ const isUsageWindow = (value: unknown): value is CPARefillUsageWindow => {
   return Boolean(start && end && !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start < end);
 };
 
+const credentialIDs = (item: Record<string, unknown> | null | undefined): number[] => {
+  if (!item || !Array.isArray(item.credential_ids)) return [];
+  return item.credential_ids
+    .map((value) => numberValue(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
+};
+
+const isMergedAccount = (item: Record<string, unknown> | null | undefined) =>
+  Boolean(item?.merged === true || numberValue(item?.credential_count) > 1 || credentialIDs(item).length > 1);
+
+// 账号列表按逻辑账号展示；凭证数量与 ID 必须显式保留，避免管理员误以为金额被重复统计。
+export function AccountIdentityCell({ item }: { item: Record<string, unknown> }) {
+  const { t } = useTranslation();
+  const merged = isMergedAccount(item);
+  const count = Math.max(1, Math.trunc(numberValue(item.credential_count) || credentialIDs(item).length));
+  return (
+    <div className={styles.accountIdentityCell}>
+      <strong title={stringValue(item.email)}>{stringValue(item.email)}</strong>
+      <span className={merged ? styles.mergedAccountBadge : styles.singleAccountBadge}>
+        {merged ? t('cpa_refill.account_merged_badge', { count }) : t('cpa_refill.account_single_badge')}
+      </span>
+    </div>
+  );
+}
+
+// 状态摘要由 Controller 聚合后提供；没有摘要时回退到主凭证状态，兼容旧版本接口。
+export function AccountStatusCell({ item }: { item: Record<string, unknown> }) {
+  const { t } = useTranslation();
+  const summary = item.status_summary || item.credential_status_summary;
+  return (
+    <div className={styles.accountStatusCell}>
+      <span>{localizedValue('status', item.status, t)}</span>
+      {summary ? <small>{String(summary)}</small> : null}
+    </div>
+  );
+}
+
 const asUsageWindows = (value: unknown): CPARefillUsageWindows | null => {
   if (!value || typeof value !== 'object') return null;
   const windows = value as Partial<CPARefillUsageWindows>;
@@ -268,7 +305,7 @@ export function UsageWindowCell({ value, quotaValue, nowMS = 0 }: { value: unkno
             <div className={styles.usageWindowMetrics}>
               <span title={t('cpa_refill.usage_requests')}>{`${formatCompactCount(row.value.requests)} req`}</span>
               <span title={t('cpa_refill.usage_tokens')}>{formatCompactCount(row.value.tokens)}</span>
-              <span title={t('cpa_refill.usage_account_cost')}>{formatCompactMicroUSD(row.value.cost_micro_usd)}</span>
+              <span title={`${t('cpa_refill.usage_account_cost')}: ${formatMicroUSD(row.value.cost_micro_usd)}`}>{formatCompactMicroUSD(row.value.cost_micro_usd)}</span>
             </div>
             <div className={quotaClassName}>
               <strong className={row.key === 'five_hour' ? styles.fiveHourBadge : styles.sevenDayBadge}>{row.label}</strong>
@@ -370,6 +407,7 @@ export function CPARefillPage() {
   const [selectedDetail, setSelectedDetail] = useState<Record<string, unknown> | null>(null);
   const [selectedEvents, setSelectedEvents] = useState<Array<Record<string, unknown>>>([]);
   const [selectedAccountID, setSelectedAccountID] = useState(0);
+  const [selectedAccountMeta, setSelectedAccountMeta] = useState<Record<string, unknown> | null>(null);
   const [eventNextCursor, setEventNextCursor] = useState('');
   const [eventHasMore, setEventHasMore] = useState(false);
   const [eventLoading, setEventLoading] = useState(false);
@@ -453,6 +491,8 @@ export function CPARefillPage() {
         to: toRFC3339(queryFilters.to),
         limit: 50,
         cursor: append ? nextCursor : undefined,
+        // 分组必须在 Controller 分页前完成，前端只负责展示聚合结果。
+        grouped: resource === 'accounts' ? true : undefined,
       };
       const response = resource === 'accounts'
         ? await cpaRefillApi.list<CPARefillAccountListItem>(resource, query)
@@ -487,6 +527,7 @@ export function CPARefillPage() {
     setSelectedDetail(null);
     setSelectedEvents([]);
     setSelectedAccountID(0);
+    setSelectedAccountMeta(null);
     setEventNextCursor('');
     setEventHasMore(false);
     if (activeTab === 'overview') return;
@@ -506,6 +547,7 @@ export function CPARefillPage() {
     if (!id || (activeTab !== 'accounts' && activeTab !== 'orders')) return;
     const detailResource = activeTab;
     setDetailKind(detailResource);
+    setSelectedAccountMeta(detailResource === 'accounts' ? item : null);
     const requestID = ++detailRequestIDRef.current;
     setDetailLoading(true);
     try {
@@ -540,6 +582,7 @@ export function CPARefillPage() {
     setSelectedDetail(null);
     setSelectedEvents([]);
     setSelectedAccountID(0);
+    setSelectedAccountMeta(null);
     setEventNextCursor('');
     setEventHasMore(false);
     setDetailLoading(false);
@@ -666,6 +709,12 @@ export function CPARefillPage() {
 
       {activeTab !== 'overview' && activeTab !== 'policy' && (
         <section className={styles.panel}>
+          {activeTab === 'accounts' && (
+            <div className={styles.accountMergeNotice} role="note">
+              <strong>{t('cpa_refill.account_merge_title')}</strong>
+              <span>{t('cpa_refill.account_merge_hint')}</span>
+            </div>
+          )}
           <form className={styles.filters} onSubmit={(event) => { event.preventDefault(); void loadList(activeTab, false); }}>
             <input value={filters.q} onChange={(event) => setActiveFilters({ ...filters, q: event.target.value })} placeholder={t(activeTab === 'accounts' ? 'cpa_refill.search_account_placeholder' : 'cpa_refill.search_placeholder')} />
             {statusOptions[activeTab] && <Select value={filters.status} options={statusSelectOptions} onChange={(status) => setActiveFilters({ ...filters, status })} placeholder={t('cpa_refill.status_placeholder')} triggerClassName={styles.filterSelectTrigger} />}
@@ -685,9 +734,17 @@ export function CPARefillPage() {
           </form>
           <div className={styles.tableWrap}>
             <table><thead><tr>{columns[activeTab].map((column) => <th key={column}>{t(`cpa_refill.fields.${column}`, { defaultValue: column })}</th>)}{(activeTab === 'accounts' || activeTab === 'orders') && <th>{t('cpa_refill.operation')}</th>}</tr></thead>
-              <tbody>{items.map((item, index) => <tr key={stringValue(item.id) + index}>{columns[activeTab].map((column) => column === 'usage_windows'
-                ? <td key={column} className={styles.usageWindowTableCell}><UsageWindowCell value={item[column]} quotaValue={item.quota_windows} nowMS={quotaClockMS} /></td>
-                : <td key={column} title={displayValue(column, item[column], t)}>{displayValue(column, item[column], t)}</td>)}{(activeTab === 'accounts' || activeTab === 'orders') && <td><button type="button" className={styles.detailButton} onClick={() => void openDetail(item)}>{t('cpa_refill.view_detail')}</button></td>}</tr>)}</tbody>
+              <tbody>{items.map((item, index) => <tr key={stringValue(item.id) + index}>{columns[activeTab].map((column) => {
+                if (activeTab === 'accounts' && column === 'email') {
+                  return <td key={column}><AccountIdentityCell item={item} /></td>;
+                }
+                if (activeTab === 'accounts' && column === 'status') {
+                  return <td key={column}><AccountStatusCell item={item} /></td>;
+                }
+                return column === 'usage_windows'
+                  ? <td key={column} className={styles.usageWindowTableCell}><UsageWindowCell value={item[column]} quotaValue={item.quota_windows} nowMS={quotaClockMS} /></td>
+                  : <td key={column} title={displayValue(column, item[column], t)}>{displayValue(column, item[column], t)}</td>;
+              })}{(activeTab === 'accounts' || activeTab === 'orders') && <td><button type="button" className={styles.detailButton} onClick={() => void openDetail(item)}>{t('cpa_refill.view_detail')}</button></td>}</tr>)}</tbody>
             </table>
             {!listLoading && items.length === 0 && <div className={styles.empty}>{t('cpa_refill.empty')}</div>}
           </div>
@@ -737,9 +794,22 @@ export function CPARefillPage() {
           <div className={styles.center}><LoadingSpinner /></div>
         ) : selectedDetail ? (
           <div className={styles.detailContent}>
+            {detailKind === 'accounts' && selectedAccountMeta && isMergedAccount(selectedAccountMeta) && (
+              <section className={styles.mergedAccountSummary}>
+                <div>
+                  <strong>{t('cpa_refill.account_merged_detail_title')}</strong>
+                  <span>{t('cpa_refill.account_merged_detail_hint', { count: Math.max(1, Math.trunc(numberValue(selectedAccountMeta.credential_count) || credentialIDs(selectedAccountMeta).length)) })}</span>
+                </div>
+                <div className={styles.credentialIDList}>
+                  {credentialIDs(selectedAccountMeta).map((credentialID) => <code key={credentialID}>#{credentialID}</code>)}
+                </div>
+                <UsageWindowCell value={selectedAccountMeta.usage_windows} quotaValue={selectedAccountMeta.quota_windows} nowMS={quotaClockMS} />
+              </section>
+            )}
             <dl className={styles.detailList}>
               {Object.entries(selectedDetail)
-                .filter(([key]) => key !== 'items')
+                // 合并账号的总金额已由聚合窗口展示；隐藏旧详情接口返回的单凭证累计值，避免两套口径并列误导。
+                .filter(([key]) => key !== 'items' && !(detailKind === 'accounts' && selectedAccountMeta && isMergedAccount(selectedAccountMeta) && (key === 'total_tokens' || key === 'cost_micro_usd')))
                 .map(([key, value]) => (
                   <div className={styles.detailRow} key={key}>
                     <dt>{t(`cpa_refill.fields.${key}`, { defaultValue: key })}</dt>
