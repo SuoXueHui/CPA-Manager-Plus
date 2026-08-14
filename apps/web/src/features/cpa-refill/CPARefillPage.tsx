@@ -452,16 +452,32 @@ export function CredentialCostBreakdown({ value }: { value: unknown }) {
       <div className={styles.credentialCostList}>
         {credentials.map((credential) => {
           const windows = asUsageWindows(credential.usage_windows);
+          const status = credential.status ? localizedValue('status', credential.status, t) : '—';
+          const windowRows = windows ? [
+            { key: 'five_hour', label: '5h', value: windows.five_hour },
+            { key: 'seven_day', label: '7d', value: windows.seven_day },
+          ] : [];
           return (
             <article className={styles.credentialCostRow} key={credential.id}>
               <div className={styles.credentialCostIdentity}>
                 <strong>#{credential.id}</strong>
-                <span>{localizedValue('status', credential.status, t)}</span>
+                <span>{status}</span>
+                <small title={stringValue(credential.cpa_auth_id)}>
+                  {t('cpa_refill.fields.cpa_auth_id')}: {stringValue(credential.cpa_auth_id)}
+                </small>
               </div>
               {windows ? (
                 <div className={styles.credentialCostValues}>
-                  <span title={formatMicroUSD(windows.five_hour.cost_micro_usd)}><b>5h</b>{formatCompactMicroUSD(windows.five_hour.cost_micro_usd)}</span>
-                  <span title={formatMicroUSD(windows.seven_day.cost_micro_usd)}><b>7d</b>{formatCompactMicroUSD(windows.seven_day.cost_micro_usd)}</span>
+                  {windowRows.map((row) => (
+                    <div className={styles.credentialCostWindow} key={row.key}>
+                      <b>{row.label}</b>
+                      <div className={styles.credentialCostWindowMetrics}>
+                        <span title={t('cpa_refill.usage_requests')}>{formatTokenCount(row.value.requests)} req</span>
+                        <span title={t('cpa_refill.usage_tokens')}>{formatTokenCount(row.value.tokens)} Token</span>
+                        <span title={t('cpa_refill.usage_account_cost')}>A {formatMicroUSD(row.value.cost_micro_usd)}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : <small className={styles.credentialCostMissing}>{t('cpa_refill.credential_cost_missing')}</small>}
             </article>

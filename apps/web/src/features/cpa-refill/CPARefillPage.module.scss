@@ -111,13 +111,16 @@
 .credentialCostHeader strong { color: var(--text-primary); font-size: 12px; }
 .credentialCostHeader small { color: var(--text-secondary); font-size: 11px; line-height: 1.45; }
 .credentialCostList { display: grid; gap: 6px; }
-.credentialCostRow { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--border-subtle) 82%, transparent); border-radius: 9px; background: var(--surface-color); }
-.credentialCostIdentity { display: flex; min-width: 0; align-items: center; gap: 7px; }
+.credentialCostRow { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--border-subtle) 82%, transparent); border-radius: 9px; background: var(--surface-color); }
+.credentialCostIdentity { display: flex; min-width: 0; flex: 0 1 170px; flex-wrap: wrap; align-items: center; gap: 5px 7px; }
 .credentialCostIdentity strong { color: var(--text-primary); font-size: 12px; }
 .credentialCostIdentity span { color: var(--text-secondary); font-size: 11px; }
-.credentialCostValues { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-.credentialCostValues span { display: inline-flex; align-items: center; gap: 4px; color: var(--text-primary); font-size: 11px; font-weight: 700; white-space: nowrap; }
-.credentialCostValues b { color: var(--text-secondary); font-size: 10px; }
+.credentialCostIdentity small { flex-basis: 100%; min-width: 0; overflow: hidden; color: var(--text-secondary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.credentialCostValues { display: grid; min-width: 0; flex: 1 1 280px; gap: 6px; }
+.credentialCostWindow { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 8px; }
+.credentialCostWindow > b { color: var(--text-secondary); font-size: 10px; }
+.credentialCostWindowMetrics { display: flex; min-width: 0; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.credentialCostWindowMetrics span { display: inline-flex; align-items: center; padding: 3px 6px; border-radius: 6px; background: var(--surface-subtle); color: var(--text-primary); font-size: 10px; font-weight: 700; white-space: nowrap; }
 .credentialCostMissing { color: #b45309; font-size: 11px; }
 .detailList { display: grid; gap: 0; margin: 0; border: 1px solid var(--border-subtle); border-radius: 14px; background: var(--surface-color); overflow: hidden; }
 .detailRow { display: grid; grid-template-columns: minmax(120px, 34%) minmax(0, 1fr); gap: 18px; align-items: start; min-width: 0; padding: 12px 14px; }
@@ -126,4 +129,4 @@
 .detailRow dd { min-width: 0; margin: 0; color: var(--text-primary); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; word-break: break-word; }
 .detailEvents { min-width: 0; padding-top: 4px; }.detailEvents h3 { margin: 0 0 10px; color: var(--text-primary); font-size: 15px; }.detailEvents article { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 11px 0; border-bottom: 1px solid var(--border-subtle); }.detailEvents article strong { min-width: 0; overflow-wrap: anywhere; }.detailEvents article span, .detailEvents article small { color: var(--text-secondary); font-size: 12px; }.detailEvents pre { max-width: 100%; overflow-x: auto; padding: 12px; border-radius: 10px; background: var(--surface-subtle); color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 1180px) { .statisticsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.summaryGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }.dependencyGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }.policyGrid { grid-template-columns: 1fr; } }
-@media (max-width: 700px) { .hero { padding: 20px; flex-direction: column; }.statisticsGrid { grid-template-columns: 1fr; }.summaryGrid { grid-template-columns: 1fr 1fr; }.dependencyGrid { grid-template-columns: 1fr; }.filters, .policyForm { grid-template-columns: 1fr; }.detailRow { grid-template-columns: 1fr; gap: 4px; } }
+@media (max-width: 700px) { .hero { padding: 20px; flex-direction: column; }.statisticsGrid { grid-template-columns: 1fr; }.summaryGrid { grid-template-columns: 1fr 1fr; }.dependencyGrid { grid-template-columns: 1fr; }.filters, .policyForm { grid-template-columns: 1fr; }.credentialCostRow { flex-direction: column; }.credentialCostIdentity, .credentialCostValues { width: 100%; flex-basis: auto; }.credentialCostWindowMetrics { justify-content: flex-start; }.detailRow { grid-template-columns: 1fr; gap: 4px; } }

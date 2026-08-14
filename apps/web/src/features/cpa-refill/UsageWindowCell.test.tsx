@@ -221,7 +221,7 @@ describe('UsageWindowCell', () => {
     expect(text).toContain('0%');
   });
 
-  it('shows each merged credential window cost without replacing the group total', () => {
+  it('shows each merged credential request, token and exact cost without replacing the group total', () => {
     let renderer!: ReactTestRenderer;
     act(() => {
       renderer = create(
@@ -230,17 +230,18 @@ describe('UsageWindowCell', () => {
             {
               id: 42,
               status: 'active',
+              cpa_auth_id: 'auth-42',
               usage_windows: {
-                five_hour: { requests: 4, tokens: 400, cost_micro_usd: 1_250_000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
-                seven_day: { requests: 9, tokens: 900, cost_micro_usd: 2_500_000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+                five_hour: { requests: 4, tokens: 400, cost_micro_usd: 51_245_000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+                seven_day: { requests: 9, tokens: 900, cost_micro_usd: 52_345_678, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
               },
             },
             {
               id: 41,
-              status: 'disabled',
+              cpa_auth_id: 'auth-41',
               usage_windows: {
-                five_hour: { requests: 6, tokens: 600, cost_micro_usd: 3_750_000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
-                seven_day: { requests: 11, tokens: 1100, cost_micro_usd: 7_500_000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+                five_hour: { requests: 6, tokens: 600, cost_micro_usd: 51_245_000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+                seven_day: { requests: 11, tokens: 1100, cost_micro_usd: 50_144_322, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
               },
             },
           ]}
@@ -255,9 +256,19 @@ describe('UsageWindowCell', () => {
       .join('|');
     expect(visibleText).toContain('#42');
     expect(visibleText).toContain('#41');
-    expect(output).toContain('A $1.25');
-    expect(output).toContain('A $3.75');
-    expect(output).toContain('A $2.50');
-    expect(output).toContain('A $7.50');
+    expect(visibleText).toContain('auth-42');
+    expect(visibleText).toContain('auth-41');
+    expect(visibleText).toContain('4 req');
+    expect(visibleText).toContain('6 req');
+    expect(visibleText).toContain('9 req');
+    expect(visibleText).toContain('11 req');
+    expect(visibleText).toContain('400 Token');
+    expect(visibleText).toContain('600 Token');
+    expect(visibleText).toContain('900 Token');
+    expect(visibleText).toContain('1,100 Token');
+    expect(visibleText.match(/\$51\.245000/g)).toHaveLength(2);
+    expect(visibleText).toContain('$52.345678');
+    expect(visibleText).toContain('$50.144322');
+    expect(output).not.toContain('undefined');
   });
 });

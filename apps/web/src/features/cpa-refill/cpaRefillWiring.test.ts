@@ -125,6 +125,9 @@ describe('CPA refill console wiring', () => {
       expect(locale.cpa_refill.title).toBeTruthy();
       expect(locale.cpa_refill.tabs.accounts).toBeTruthy();
       expect(locale.cpa_refill.account_detail).toBeTruthy();
+      expect(locale.cpa_refill.credential_cost_title).toBeTruthy();
+      expect(locale.cpa_refill.credential_cost_hint).toBeTruthy();
+      expect(locale.cpa_refill.credential_cost_missing).toBeTruthy();
       expect(locale.cpa_refill.fields.email).toBeTruthy();
       expect(locale.cpa_refill.fields.total_tokens).toBeTruthy();
       expect(locale.cpa_refill.fields.cost_micro_usd).toBeTruthy();
