@@ -235,7 +235,7 @@ describe('UsageWindowCell', () => {
     expect(JSON.stringify(renderer.toJSON())).toContain('10 req');
   });
 
-  it('fails closed for invalid quota data and clamps over-limit progress width', () => {
+  it('distinguishes malformed quota data from an account that has never been probed', () => {
     const usage = {
       five_hour: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
       seven_day: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
@@ -254,7 +254,67 @@ describe('UsageWindowCell', () => {
       );
     });
     expect(invalidRenderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(0);
-    expect(JSON.stringify(invalidRenderer.toJSON())).toContain('cpa_refill.usage_quota_unprobed');
+    expect(JSON.stringify(invalidRenderer.toJSON())).toContain('cpa_refill.usage_quota_invalid');
+    expect(invalidRenderer.root.findAllByProps({ 'data-quota-state': 'invalid' })).toHaveLength(2);
+  });
+
+  it('only accepts fetched_at null for the explicit first-probe failure envelope', () => {
+    const usage = {
+      five_hour: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+      seven_day: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+    };
+    const invalidPayloads = [
+      {
+        source: 'chatgpt_wham', status: 'fresh', error_code: '', plan_type: 'pro', fetched_at: null,
+        five_hour: { used_milli_percent: 1000, remaining_milli_percent: 99000, window_seconds: 18000, reset_at: null },
+        seven_day: null,
+      },
+      {
+        source: 'chatgpt_wham', status: 'stale', error_code: '', plan_type: '', fetched_at: null,
+        five_hour: null,
+        seven_day: null,
+      },
+    ];
+
+    for (const quotaValue of invalidPayloads) {
+      let renderer!: ReactTestRenderer;
+      act(() => {
+        renderer = create(<UsageWindowCell value={usage} quotaValue={quotaValue} />);
+      });
+      expect(renderer.root.findAllByProps({ 'data-quota-state': 'invalid' })).toHaveLength(2);
+      expect(JSON.stringify(renderer.toJSON())).toContain('cpa_refill.usage_quota_invalid');
+    }
+  });
+
+  it('keeps stale freshness and the latest fetch error as separate status signals', () => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <UsageWindowCell
+          value={{
+            five_hour: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+            seven_day: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+          }}
+          quotaValue={{
+            source: 'chatgpt_wham', status: 'stale', error_code: 'rate_limited', plan_type: 'pro', fetched_at: '2026-08-13T10:00:00Z',
+            five_hour: { used_milli_percent: 80000, remaining_milli_percent: 20000, window_seconds: 18000, reset_at: null },
+            seven_day: null,
+          }}
+        />
+      );
+    });
+
+    expect(renderer.root.findAllByProps({ 'data-quota-state': 'stale' })).toHaveLength(1);
+    const output = JSON.stringify(renderer.toJSON());
+    expect(output).toContain('cpa_refill.usage_quota_stale');
+    expect(output).toContain('cpa_refill.usage_quota_fetch_failed');
+  });
+
+  it('clamps over-limit progress width', () => {
+    const usage = {
+      five_hour: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+      seven_day: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+    };
 
     let overLimitRenderer!: ReactTestRenderer;
     act(() => {

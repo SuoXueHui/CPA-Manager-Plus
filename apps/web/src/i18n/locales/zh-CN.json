@@ -284,7 +284,7 @@
     "usage_tokens": "Token",
     "usage_account_cost": "账号计费金额",
     "usage_local_estimate_label": "本地估算",
-    "usage_local_estimate_hint": "金额由 Controller 按已记录的 Token 和当前模型单价估算，仅用于本地统计，不是 OpenAI 或 ChatGPT 上游账单。",
+    "usage_local_estimate_hint": "金额由 Controller 按事件记录时生效的模型价格估算，仅用于本地统计，不是 OpenAI 或 ChatGPT 上游账单。",
     "usage_rolling_window": "滚动窗口",
     "usage_statistics_range": "本地统计范围：{{range}}",
     "usage_quota_progress": "{{window}} 官方配额已用比例",
@@ -296,6 +296,7 @@
     "usage_quota_unprobed": "尚未探测配额",
     "usage_quota_fetch_failed": "配额获取失败",
     "usage_quota_window_missing": "此窗口无配额数据",
+    "usage_quota_invalid": "配额数据异常",
     "usage_quota_stale": "数据已过期",
     "fields": {
       "id": "ID",

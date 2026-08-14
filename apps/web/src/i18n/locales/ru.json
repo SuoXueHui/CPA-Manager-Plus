@@ -284,7 +284,7 @@
     "usage_tokens": "Токены",
     "usage_account_cost": "Сумма по аккаунту",
     "usage_local_estimate_label": "Локальная оценка",
-    "usage_local_estimate_hint": "Сумма оценивается Controller по записанным токенам и текущим ценам моделей. Это локальная статистика, а не счёт OpenAI или ChatGPT.",
+    "usage_local_estimate_hint": "Controller оценивает сумму по ценам моделей, действовавшим на момент записи каждого события. Это локальная статистика, а не счёт OpenAI или ChatGPT.",
     "usage_rolling_window": "Скользящее окно",
     "usage_statistics_range": "Локальный диапазон статистики: {{range}}",
     "usage_quota_progress": "Официальная квота {{window}} использована",
@@ -296,6 +296,7 @@
     "usage_quota_unprobed": "Квота ещё не проверялась",
     "usage_quota_fetch_failed": "Не удалось получить квоту",
     "usage_quota_window_missing": "Нет данных квоты для этого окна",
+    "usage_quota_invalid": "Некорректные данные квоты",
     "usage_quota_stale": "Данные устарели",
     "fields": {
       "id": "ID",

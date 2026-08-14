@@ -240,8 +240,14 @@ const isQuotaWindow = (value: unknown): value is CPARefillQuotaWindow => {
   return true;
 };
 
-const asQuotaWindows = (value: unknown): CPARefillQuotaWindows | null => {
-  if (!value || typeof value !== 'object') return null;
+type QuotaWindowsParseResult =
+  | { state: 'absent' | 'invalid'; quota: null }
+  | { state: 'valid'; quota: CPARefillQuotaWindows };
+
+// 缺失快照与坏 DTO 必须分开；否则接口兼容性或数据损坏会被误报成“尚未探测”。
+const parseQuotaWindows = (value: unknown): QuotaWindowsParseResult => {
+  if (value === null || value === undefined) return { state: 'absent', quota: null };
+  if (typeof value !== 'object') return { state: 'invalid', quota: null };
   const quota = value as Partial<CPARefillQuotaWindows>;
   const fetchedAt = typeof quota.fetched_at === 'string' ? new Date(quota.fetched_at) : null;
   if (
@@ -251,13 +257,22 @@ const asQuotaWindows = (value: unknown): CPARefillQuotaWindows | null => {
     typeof quota.plan_type !== 'string' ||
     (quota.fetched_at !== null && (!fetchedAt || Number.isNaN(fetchedAt.getTime())))
   ) {
-    return null;
+    return { state: 'invalid', quota: null };
   }
-  if (!Object.prototype.hasOwnProperty.call(quota, 'five_hour') || !Object.prototype.hasOwnProperty.call(quota, 'seven_day')) return null;
-  if (quota.five_hour !== null && !isQuotaWindow(quota.five_hour)) return null;
-  if (quota.seven_day !== null && !isQuotaWindow(quota.seven_day)) return null;
-  // 允许保留“首次探测失败、尚无成功窗口”的快照外壳，供页面区分未探测与获取失败。
-  return quota as CPARefillQuotaWindows;
+  if (!Object.prototype.hasOwnProperty.call(quota, 'five_hour') || !Object.prototype.hasOwnProperty.call(quota, 'seven_day')) {
+    return { state: 'invalid', quota: null };
+  }
+  if (quota.five_hour !== null && !isQuotaWindow(quota.five_hour)) return { state: 'invalid', quota: null };
+  if (quota.seven_day !== null && !isQuotaWindow(quota.seven_day)) return { state: 'invalid', quota: null };
+
+  const hasWindow = Boolean(quota.five_hour || quota.seven_day);
+  const hasFailure = quota.error_code.trim() !== '';
+  // fetched_at=null 只兼容“首次探测失败且尚无成功窗口”的 Controller 快照外壳。
+  const isFirstFailureEnvelope = quota.status === 'stale' && hasFailure && !hasWindow && quota.fetched_at === null;
+  if (quota.fetched_at === null && !isFirstFailureEnvelope) return { state: 'invalid', quota: null };
+  if (hasWindow && !fetchedAt) return { state: 'invalid', quota: null };
+  if (quota.status === 'fresh' && hasFailure) return { state: 'invalid', quota: null };
+  return { state: 'valid', quota: quota as CPARefillQuotaWindows };
 };
 
 // 倒计时只接收页面共享时钟；组件自身不创建 interval，避免 50 行产生数百个定时器。
@@ -349,9 +364,10 @@ export function UsageWindowCell({ value, quotaValue, nowMS = 0 }: { value: unkno
   const { t } = useTranslation();
   const windows = asUsageWindows(value);
   if (!windows) return <span className={styles.usageWindowMissing}>—</span>;
-  const quota = asQuotaWindows(quotaValue);
+  const quotaResult = parseQuotaWindows(quotaValue);
+  const quota = quotaResult.quota;
   const isStale = quota?.status === 'stale';
-  const hasQuotaFailure = Boolean(quota?.error_code);
+  const hasQuotaFailure = Boolean(quota?.error_code.trim());
   const rows: Array<{ key: keyof CPARefillUsageWindows; label: string; value: CPARefillUsageWindow }> = [
     { key: 'five_hour', label: '5h', value: windows.five_hour },
     { key: 'seven_day', label: '7d', value: windows.seven_day },
@@ -397,18 +413,24 @@ export function UsageWindowCell({ value, quotaValue, nowMS = 0 }: { value: unkno
               ? styles.usageQuotaWarning
               : '';
           const quotaState = quotaWindow
-            ? (hasQuotaFailure ? 'failed' : isStale ? 'stale' : 'fresh')
-            : !quota
+            ? (isStale ? 'stale' : 'fresh')
+            : quotaResult.state === 'absent'
               ? 'unprobed'
+              : quotaResult.state === 'invalid'
+                ? 'invalid'
               : hasQuotaFailure
                 ? 'failed'
                 : 'missing';
-          const missingQuotaLabel = !quota
+          const missingQuotaLabel = quotaResult.state === 'absent'
             ? t('cpa_refill.usage_quota_unprobed')
+            : quotaResult.state === 'invalid'
+              ? t('cpa_refill.usage_quota_invalid')
             : hasQuotaFailure
               ? t('cpa_refill.usage_quota_fetch_failed')
               : t('cpa_refill.usage_quota_window_missing');
-          const quotaClassName = [styles.usageQuotaRow, severityClass].filter(Boolean).join(' ');
+          const quotaClassName = [styles.usageQuotaRow, severityClass, isStale && quotaWindow ? styles.usageQuotaStale : '']
+            .filter(Boolean)
+            .join(' ');
           return (
             <div
               className={styles.usageWindowRow}
@@ -463,11 +485,10 @@ export function UsageWindowCell({ value, quotaValue, nowMS = 0 }: { value: unkno
                           ? t('cpa_refill.usage_resets_in', { time: countdown })
                           : t('cpa_refill.usage_reset_unknown')}
                       </small>
-                      {hasQuotaFailure ? (
+                      {isStale && <small className={styles.usageQuotaStaleLabel}>{t('cpa_refill.usage_quota_stale')}</small>}
+                      {hasQuotaFailure && (
                         <small className={styles.usageQuotaFailedLabel}>{t('cpa_refill.usage_quota_fetch_failed')}</small>
-                      ) : isStale ? (
-                        <small className={styles.usageQuotaStaleLabel}>{t('cpa_refill.usage_quota_stale')}</small>
-                      ) : null}
+                      )}
                     </div>
                   </>
                 ) : (
@@ -475,7 +496,7 @@ export function UsageWindowCell({ value, quotaValue, nowMS = 0 }: { value: unkno
                     className={[styles.usageQuotaUnavailable,
                       quotaState === 'failed'
                         ? styles.usageQuotaFailedLabel
-                        : quotaState === 'missing'
+                        : quotaState === 'missing' || quotaState === 'invalid'
                           ? styles.usageQuotaMissingLabel
                           : ''
                     ].filter(Boolean).join(' ')}

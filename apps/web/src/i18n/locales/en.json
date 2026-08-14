@@ -284,7 +284,7 @@
     "usage_tokens": "Tokens",
     "usage_account_cost": "Account billed amount",
     "usage_local_estimate_label": "Local estimate",
-    "usage_local_estimate_hint": "Estimated by the Controller from recorded tokens and current model prices. This is local usage data, not an OpenAI or ChatGPT bill.",
+    "usage_local_estimate_hint": "Estimated by the Controller using the model prices active when each event was recorded. This is local usage data, not an OpenAI or ChatGPT bill.",
     "usage_rolling_window": "Rolling window",
     "usage_statistics_range": "Local statistics range: {{range}}",
     "usage_quota_progress": "{{window}} official quota used",
@@ -296,6 +296,7 @@
     "usage_quota_unprobed": "Quota not probed yet",
     "usage_quota_fetch_failed": "Quota fetch failed",
     "usage_quota_window_missing": "No quota data for this window",
+    "usage_quota_invalid": "Invalid quota data",
     "usage_quota_stale": "Data expired",
     "fields": {
       "id": "ID",

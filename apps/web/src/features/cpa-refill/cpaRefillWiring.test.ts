@@ -145,6 +145,7 @@ describe('CPA refill console wiring', () => {
       expect(locale.cpa_refill.usage_quota_unprobed).toBeTruthy();
       expect(locale.cpa_refill.usage_quota_fetch_failed).toBeTruthy();
       expect(locale.cpa_refill.usage_quota_window_missing).toBeTruthy();
+      expect(locale.cpa_refill.usage_quota_invalid).toBeTruthy();
       expect(locale.cpa_refill.usage_quota_stale).toBeTruthy();
       expect(locale.cpa_refill.usage_remaining_label).toBeTruthy();
       expect(locale.cpa_refill.usage_resets_in).toBeTruthy();
