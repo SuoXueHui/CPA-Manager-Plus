@@ -341,7 +341,7 @@ describe('UsageWindowCell', () => {
     expect(text).toContain('0%');
   });
 
-  it('shows each merged credential request, token and exact cost without replacing the group total', () => {
+  it('shows each merged credential request, token and local estimated amount without replacing the group total', () => {
     let renderer!: ReactTestRenderer;
     act(() => {
       renderer = create(
@@ -389,6 +389,8 @@ describe('UsageWindowCell', () => {
     expect(visibleText.match(/\$51\.245000/g)).toHaveLength(2);
     expect(visibleText).toContain('$52.345678');
     expect(visibleText).toContain('$50.144322');
+    const estimates = renderer.root.findAllByProps({ title: 'cpa_refill.usage_local_estimate_hint' });
+    expect(estimates).toHaveLength(4);
     expect(output).not.toContain('undefined');
   });
 });

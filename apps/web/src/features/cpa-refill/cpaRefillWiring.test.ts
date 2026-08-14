@@ -154,4 +154,35 @@ describe('CPA refill console wiring', () => {
       expect(locale.cpa_refill.values.status.active).toBeTruthy();
     }
   });
+
+  it('labels every account usage amount as a local estimate rather than an upstream bill', () => {
+    const locales = [
+      { locale: en, upstreamBill: /upstream bill|(?:OpenAI|ChatGPT).*bills?/i },
+      { locale: ru, upstreamBill: /(?:OpenAI|ChatGPT).*(?:сч[её]т|сч[её]том)|(?:сч[её]т|сч[её]том).*(?:OpenAI|ChatGPT)/i },
+      { locale: zhCN, upstreamBill: /上游账单|(?:OpenAI|ChatGPT).*账单/i },
+      { locale: zhTW, upstreamBill: /上游帳單|(?:OpenAI|ChatGPT).*帳單/i },
+    ];
+    const disclosureKeys = [
+      'operating_statistics_hint',
+      'statistics_today_usage_hint',
+      'account_merge_hint',
+      'account_merged_detail_hint',
+      'credential_cost_hint',
+      'usage_local_estimate_hint',
+    ] as const;
+    for (const { locale, upstreamBill } of locales) {
+      expect(locale.cpa_refill.usage_account_cost).toBe(locale.cpa_refill.usage_local_estimate_label);
+      expect(locale.cpa_refill.total_account_usage_cost).toContain(locale.cpa_refill.usage_local_estimate_label);
+      expect(locale.cpa_refill.credential_cost_title).toContain(locale.cpa_refill.usage_local_estimate_label);
+      expect(locale.cpa_refill.fields.cost_micro_usd.toLowerCase()).toContain(
+        locale.cpa_refill.usage_local_estimate_label.toLowerCase()
+      );
+      expect(locale.cpa_refill.credential_cost_hint.toLowerCase()).not.toContain('exact');
+      expect(locale.cpa_refill.usage_account_cost.toLowerCase()).not.toContain('billed');
+      for (const key of disclosureKeys) {
+        expect(locale.cpa_refill[key]).toMatch(upstreamBill);
+      }
+    }
+    expect(pageSource).toContain("title={t('cpa_refill.usage_local_estimate_hint')}");
+  });
 });
