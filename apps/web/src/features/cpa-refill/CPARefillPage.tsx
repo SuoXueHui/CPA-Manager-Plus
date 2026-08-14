@@ -16,6 +16,7 @@ import {
   type CPARefillPolicy,
   type CPARefillQuotaWindow,
   type CPARefillQuotaWindows,
+  type CPARefillStatistics,
   type CPARefillUsageWindow,
   type CPARefillUsageWindows,
 } from '@/services/api/cpaRefill';
@@ -117,6 +118,29 @@ const formatMicroUSD = (value: unknown) => `$${(numberValue(value) / 1_000_000).
 
 // 窗口徽标保留两位美元精度，与 Sub2API 的高密度账号成本展示一致。
 const formatCompactMicroUSD = (value: unknown) => `A $${(numberValue(value) / 1_000_000).toFixed(2)}`;
+
+// 概览统计只接受非负有限整数；缺失或坏数据必须显示未知，不能静默变成 0。
+const operatingNumber = (value: unknown) =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+
+const formatOperatingFen = (value: unknown) => {
+  const amount = operatingNumber(value);
+  return amount === null ? '—' : `¥${(amount / 100).toFixed(2)}`;
+};
+
+const formatOperatingTokens = (value: unknown) => {
+  const tokens = operatingNumber(value);
+  return tokens === null
+    ? '—'
+    : new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(tokens);
+};
+
+const formatOperatingMicroUSD = (value: unknown) => {
+  const amount = operatingNumber(value);
+  return amount === null
+    ? '—'
+    : `$${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount / 1_000_000)}`;
+};
 
 // 列表统计必须完整且非负；坏数据宁可显示缺失，也不能伪装成 0 影响运营判断。
 const isUsageWindow = (value: unknown): value is CPARefillUsageWindow => {
@@ -248,6 +272,67 @@ const useMinuteClock = () => {
   }, []);
   return nowMS;
 };
+
+// 生产管理页的经营统计区块与运行状态卡片分层展示，避免金额和队列指标混在一起。
+export function OperatingStatisticsCards({ statistics }: { statistics?: CPARefillStatistics }) {
+  const { t } = useTranslation();
+  const values = statistics || ({} as Partial<CPARefillStatistics>);
+  const cards = [
+    {
+      key: 'purchase',
+      label: t('cpa_refill.today_purchase_cost'),
+      value: formatOperatingFen(values.today_purchase_fen),
+      meta: t('cpa_refill.statistics_today_purchase_hint'),
+    },
+    {
+      key: 'balance',
+      label: t('cpa_refill.supplier_available_balance'),
+      value: formatOperatingFen(values.supplier_available_fen),
+      meta: operatingNumber(values.supplier_balance_fen) === null || operatingNumber(values.supplier_held_fen) === null
+        ? t('cpa_refill.statistics_unavailable')
+        : t('cpa_refill.statistics_balance_hint', {
+            balance: formatOperatingFen(values.supplier_balance_fen),
+            held: formatOperatingFen(values.supplier_held_fen),
+          }),
+    },
+    {
+      key: 'tokens',
+      label: t('cpa_refill.total_tokens_consumed'),
+      value: formatOperatingTokens(values.total_tokens),
+      meta: operatingNumber(values.today_tokens) === null
+        ? t('cpa_refill.statistics_unavailable')
+        : t('cpa_refill.statistics_today_tokens_hint', { tokens: formatOperatingTokens(values.today_tokens) }),
+    },
+    {
+      key: 'usage',
+      label: t('cpa_refill.total_account_usage_cost'),
+      value: formatOperatingMicroUSD(values.total_usage_micro_usd),
+      meta: operatingNumber(values.today_usage_micro_usd) === null
+        ? t('cpa_refill.statistics_unavailable')
+        : t('cpa_refill.statistics_today_usage_hint', { amount: formatOperatingMicroUSD(values.today_usage_micro_usd) }),
+    },
+  ];
+
+  return (
+    <section className={styles.statisticsSection} aria-labelledby="refill-operating-statistics-title">
+      <div className={styles.sectionHeading}>
+        <div>
+          <h2 id="refill-operating-statistics-title">{t('cpa_refill.operating_statistics')}</h2>
+          <p>{t('cpa_refill.operating_statistics_hint')}</p>
+        </div>
+      </div>
+      <div className={styles.statisticsGrid}>
+        {cards.map((card) => (
+          <article key={card.key} className={styles.statisticsCard} data-statistic={card.key}>
+            <span>{card.label}</span>
+            <strong>{card.value}</strong>
+            <small>{card.value === '—' ? t('cpa_refill.statistics_unavailable') : card.meta}</small>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 // 独立导出便于对实际渲染的请求数、Token、金额单位和可访问提示做回归测试。
 export function UsageWindowCell({ value, quotaValue, nowMS = 0 }: { value: unknown; quotaValue?: unknown; nowMS?: number }) {
@@ -686,6 +771,7 @@ export function CPARefillPage() {
 
       {activeTab === 'overview' && (
         <>
+          <OperatingStatisticsCards statistics={overview?.statistics} />
           <section className={styles.summaryGrid}>
             {summaryCards.map((card) => (
               <article key={card.label} className={styles.summaryCard}>
