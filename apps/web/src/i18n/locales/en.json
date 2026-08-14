@@ -257,7 +257,7 @@
     "account_merged_badge": "Grouped · {{count}} credentials",
     "account_single_badge": "Single credential",
     "account_merged_detail_title": "Grouped account",
-    "account_merged_detail_hint": "This logical account contains {{count}} credentials; the amount below is the combined request cost.",
+    "account_merged_detail_hint": "This logical account contains {{count}} credentials; the amount below is the combined request cost. Details and events default to the representative credential.",
     "order_detail": "Order Details",
     "delivered_items": "Delivered Accounts",
     "account_events": "Account Events",

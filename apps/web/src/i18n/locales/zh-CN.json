@@ -257,7 +257,7 @@
     "account_merged_badge": "已合并 · {{count}} 份凭证",
     "account_single_badge": "单凭证",
     "account_merged_detail_title": "合并账号",
-    "account_merged_detail_hint": "该逻辑账号包含 {{count}} 份凭证；下方金额为所有凭证请求成本合计。",
+    "account_merged_detail_hint": "该逻辑账号包含 {{count}} 份凭证；下方金额为所有凭证请求成本合计。详情与事件入口默认展示代表凭证。",
     "order_detail": "订单明细",
     "delivered_items": "交付账号",
     "account_events": "账号事件",

@@ -257,7 +257,7 @@
     "account_merged_badge": "已合併 · {{count}} 份憑證",
     "account_single_badge": "單憑證",
     "account_merged_detail_title": "合併帳號",
-    "account_merged_detail_hint": "此邏輯帳號包含 {{count}} 份憑證；下方金額為所有憑證請求成本合計。",
+    "account_merged_detail_hint": "此邏輯帳號包含 {{count}} 份憑證；下方金額為所有憑證請求成本合計。詳情與事件入口預設顯示代表憑證。",
     "order_detail": "訂單明細",
     "delivered_items": "交付帳號",
     "account_events": "帳號事件",
