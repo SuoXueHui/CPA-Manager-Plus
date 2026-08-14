@@ -721,11 +721,13 @@ export function CPARefillPage() {
                 <div className={styles.credentialIDList}>
                   {credentialIDs(selectedAccountMeta).map((credentialID) => <code key={credentialID}>#{credentialID}</code>)}
                 </div>
+                <UsageWindowCell value={selectedAccountMeta.usage_windows} />
               </section>
             )}
             <dl className={styles.detailList}>
               {Object.entries(selectedDetail)
-                .filter(([key]) => key !== 'items')
+                // 合并账号的总金额已由聚合窗口展示；隐藏旧详情接口返回的单凭证累计值，避免两套口径并列误导。
+                .filter(([key]) => key !== 'items' && !(detailKind === 'accounts' && selectedAccountMeta && isMergedAccount(selectedAccountMeta) && (key === 'total_tokens' || key === 'cost_micro_usd')))
                 .map(([key, value]) => (
                   <div className={styles.detailRow} key={key}>
                     <dt>{t(`cpa_refill.fields.${key}`, { defaultValue: key })}</dt>
