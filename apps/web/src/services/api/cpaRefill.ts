@@ -82,7 +82,8 @@ export interface CPARefillQuotaWindows {
   status: string;
   error_code: string;
   plan_type: string;
-  fetched_at: string;
+  // 首次探测失败时 Controller 只有 last_attempt_at，没有成功快照时间。
+  fetched_at: string | null;
   five_hour: CPARefillQuotaWindow | null;
   seven_day: CPARefillQuotaWindow | null;
 }

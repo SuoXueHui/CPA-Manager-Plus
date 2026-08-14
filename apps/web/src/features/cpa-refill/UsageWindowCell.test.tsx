@@ -65,6 +65,8 @@ describe('UsageWindowCell', () => {
     });
 
     const output = JSON.stringify(renderer.toJSON());
+    const panel = renderer.root.findByProps({ 'data-testid': 'usage-window-panel' });
+    expect(panel.findAllByProps({ 'data-testid': 'usage-window-row' })).toHaveLength(2);
     const visibleText = renderer.root
       .findAll((node) => node.type === 'span' || node.type === 'strong' || node.type === 'small')
       .map((node) => node.children.filter((child) => typeof child === 'string').join(''))
@@ -75,6 +77,12 @@ describe('UsageWindowCell', () => {
     expect(visibleText).toContain('221 req');
     expect(output).toContain('22.5M');
     expect(output).toContain('A $22.66');
+    const localEstimates = renderer.root.findAllByProps({ 'data-testid': 'usage-local-estimate' });
+    expect(localEstimates).toHaveLength(2);
+    for (const estimate of localEstimates) {
+      expect(estimate.props.title).toBe('cpa_refill.usage_local_estimate_hint');
+      expect(estimate.findByType('small').children.join('')).toBe('cpa_refill.usage_local_estimate_label');
+    }
     expect(renderer.root.findByProps({ 'data-testid': 'usage-window-info' }).props).toEqual(
       expect.objectContaining({
         'aria-label': 'cpa_refill.usage_windows_local_hint',
@@ -151,7 +159,31 @@ describe('UsageWindowCell', () => {
     const output = JSON.stringify(renderer.toJSON());
     expect(output).toContain('3 req');
     expect(output).toContain('A $0.02');
-    expect(output).toContain('cpa_refill.usage_quota_unavailable');
+    expect(output).toContain('cpa_refill.usage_quota_unprobed');
+    expect(renderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ 'data-quota-state': 'unprobed' })).toHaveLength(2);
+  });
+
+  it('distinguishes a failed quota probe from an account that has never been probed', () => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <UsageWindowCell
+          value={{
+            five_hour: { requests: 3, tokens: 89000, cost_micro_usd: 20000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+            seven_day: { requests: 3, tokens: 89000, cost_micro_usd: 20000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+          }}
+          quotaValue={{
+            source: 'chatgpt_wham', status: 'stale', error_code: 'quota_fetch_failed', plan_type: '', fetched_at: null,
+            five_hour: null,
+            seven_day: null,
+          }}
+        />
+      );
+    });
+
+    expect(JSON.stringify(renderer.toJSON())).toContain('cpa_refill.usage_quota_fetch_failed');
+    expect(renderer.root.findAllByProps({ 'data-quota-state': 'failed' })).toHaveLength(2);
     expect(renderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(0);
   });
 
@@ -165,7 +197,7 @@ describe('UsageWindowCell', () => {
             seven_day: { requests: 1, tokens: 100, cost_micro_usd: 1000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
           }}
           quotaValue={{
-            source: 'chatgpt_wham', status: 'stale', error_code: 'rate_limited', plan_type: 'pro', fetched_at: '2026-08-13T10:00:00Z',
+            source: 'chatgpt_wham', status: 'stale', error_code: '', plan_type: 'pro', fetched_at: '2026-08-13T10:00:00Z',
             five_hour: { used_milli_percent: 16000, remaining_milli_percent: 84000, window_seconds: 18000, reset_at: '2099-08-13T16:00:00Z' },
             seven_day: null,
           }}
@@ -173,7 +205,34 @@ describe('UsageWindowCell', () => {
       );
     });
     expect(JSON.stringify(renderer.toJSON())).toContain('cpa_refill.usage_quota_stale');
+    expect(JSON.stringify(renderer.toJSON())).toContain('cpa_refill.usage_quota_window_missing');
     expect(renderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(1);
+    expect(renderer.root.findAllByProps({ 'data-quota-state': 'stale' })).toHaveLength(1);
+    expect(renderer.root.findAllByProps({ 'data-quota-state': 'missing' })).toHaveLength(1);
+  });
+
+  it('marks warning and critical official quota thresholds without changing local metrics', () => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <UsageWindowCell
+          value={{
+            five_hour: { requests: 8, tokens: 800, cost_micro_usd: 8000, window_start: '2026-08-13T07:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+            seven_day: { requests: 10, tokens: 1000, cost_micro_usd: 10000, window_start: '2026-08-06T12:00:00Z', window_end: '2026-08-13T12:00:00Z' },
+          }}
+          quotaValue={{
+            source: 'chatgpt_wham', status: 'fresh', error_code: '', plan_type: 'pro', fetched_at: '2026-08-13T12:00:00Z',
+            five_hour: { used_milli_percent: 80000, remaining_milli_percent: 20000, window_seconds: 18000, reset_at: null },
+            seven_day: { used_milli_percent: 100000, remaining_milli_percent: 0, window_seconds: 604800, reset_at: null },
+          }}
+        />
+      );
+    });
+
+    expect(renderer.root.findAllByProps({ 'data-quota-severity': 'warning' })).toHaveLength(1);
+    expect(renderer.root.findAllByProps({ 'data-quota-severity': 'critical' })).toHaveLength(1);
+    expect(JSON.stringify(renderer.toJSON())).toContain('8 req');
+    expect(JSON.stringify(renderer.toJSON())).toContain('10 req');
   });
 
   it('fails closed for invalid quota data and clamps over-limit progress width', () => {
@@ -195,7 +254,7 @@ describe('UsageWindowCell', () => {
       );
     });
     expect(invalidRenderer.root.findAllByProps({ role: 'progressbar' })).toHaveLength(0);
-    expect(JSON.stringify(invalidRenderer.toJSON())).toContain('cpa_refill.usage_quota_unavailable');
+    expect(JSON.stringify(invalidRenderer.toJSON())).toContain('cpa_refill.usage_quota_unprobed');
 
     let overLimitRenderer!: ReactTestRenderer;
     act(() => {
@@ -213,6 +272,7 @@ describe('UsageWindowCell', () => {
     const progress = overLimitRenderer.root.findByProps({ role: 'progressbar' });
     expect(progress.props['aria-valuenow']).toBe(123.4);
     expect(progress.findByType('span').props.style.width).toBe('100%');
+    expect(overLimitRenderer.root.findAllByProps({ 'data-quota-severity': 'critical' })).toHaveLength(1);
     const text = overLimitRenderer.root
       .findAll((node) => node.type === 'span' || node.type === 'small')
       .map((node) => node.children.filter((child) => typeof child === 'string').join(''))
