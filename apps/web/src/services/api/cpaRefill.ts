@@ -20,6 +20,18 @@ export type CPARefillAction =
   | 'reset-circuit'
   | 'manual-refill';
 
+// 经营统计保持 Controller 的整数单位：采购/余额为人民币分，用量金额为 micro USD。
+export interface CPARefillStatistics {
+  today_purchase_fen: number;
+  supplier_balance_fen: number;
+  supplier_held_fen: number;
+  supplier_available_fen: number;
+  total_tokens: number;
+  total_usage_micro_usd: number;
+  today_tokens: number;
+  today_usage_micro_usd: number;
+}
+
 export interface CPARefillOverview {
   mode: string;
   status: string;
@@ -28,6 +40,7 @@ export interface CPARefillOverview {
   decision?: Record<string, unknown>;
   supplier?: Record<string, unknown>;
   usage?: Record<string, unknown>;
+  statistics?: CPARefillStatistics;
   dependencies?: Array<Record<string, unknown>>;
   generated_at?: string;
 }

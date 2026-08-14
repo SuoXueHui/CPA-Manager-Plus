@@ -13,6 +13,20 @@
 .tabs button { border: 0; background: transparent; color: var(--text-secondary); padding: 9px 14px; border-radius: 11px; white-space: nowrap; cursor: pointer; font-weight: 650; }
 .tabs button:hover { color: var(--text-primary); background: color-mix(in srgb, var(--surface-color) 70%, transparent); }
 .tabs .activeTab { color: var(--text-primary); background: var(--surface-color); box-shadow: 0 4px 14px rgba(15, 23, 42, .08); }
+.statisticsSection { display: grid; gap: 12px; }
+.sectionHeading { display: flex; align-items: end; justify-content: space-between; gap: 18px; }
+.sectionHeading h2 { margin: 0 0 4px; color: var(--text-primary); font-size: 17px; letter-spacing: -.01em; }
+.sectionHeading p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.statisticsGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.statisticsCard { position: relative; min-width: 0; overflow: hidden; padding: 18px 18px 16px; border: 1px solid var(--border-subtle); border-radius: 16px; background: linear-gradient(155deg, color-mix(in srgb, #0ca678 6%, var(--surface-color)), var(--surface-color) 58%); box-shadow: var(--shadow-xs); }
+.statisticsCard::before { position: absolute; inset: 0 auto 0 0; width: 3px; content: ''; background: #0ca678; }
+.statisticsCard[data-statistic='balance']::before { background: #0ea5e9; }
+.statisticsCard[data-statistic='tokens']::before { background: #6366f1; }
+.statisticsCard[data-statistic='usage']::before { background: #f59e0b; }
+.statisticsCard span, .statisticsCard small { display: block; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statisticsCard span { font-size: 12px; font-weight: 700; }
+.statisticsCard strong { display: block; margin: 9px 0 6px; color: var(--text-primary); font-size: clamp(21px, 2vw, 27px); letter-spacing: -.025em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statisticsCard small { font-size: 11px; }
 .summaryGrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .summaryCard { min-width: 0; padding: 18px; border-radius: 16px; border: 1px solid var(--border-subtle); background: var(--surface-color); box-shadow: var(--shadow-xs); }
 .summaryCard span, .summaryCard small { display: block; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -111,5 +125,5 @@
 .detailRow dt { min-width: 0; color: var(--text-secondary); font-size: 12px; font-weight: 650; line-height: 1.55; overflow-wrap: anywhere; }
 .detailRow dd { min-width: 0; margin: 0; color: var(--text-primary); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; word-break: break-word; }
 .detailEvents { min-width: 0; padding-top: 4px; }.detailEvents h3 { margin: 0 0 10px; color: var(--text-primary); font-size: 15px; }.detailEvents article { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 11px 0; border-bottom: 1px solid var(--border-subtle); }.detailEvents article strong { min-width: 0; overflow-wrap: anywhere; }.detailEvents article span, .detailEvents article small { color: var(--text-secondary); font-size: 12px; }.detailEvents pre { max-width: 100%; overflow-x: auto; padding: 12px; border-radius: 10px; background: var(--surface-subtle); color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
-@media (max-width: 1180px) { .summaryGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }.dependencyGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }.policyGrid { grid-template-columns: 1fr; } }
-@media (max-width: 700px) { .hero { padding: 20px; flex-direction: column; }.summaryGrid { grid-template-columns: 1fr 1fr; }.dependencyGrid { grid-template-columns: 1fr; }.filters, .policyForm { grid-template-columns: 1fr; }.detailRow { grid-template-columns: 1fr; gap: 4px; } }
+@media (max-width: 1180px) { .statisticsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.summaryGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }.dependencyGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }.policyGrid { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .hero { padding: 20px; flex-direction: column; }.statisticsGrid { grid-template-columns: 1fr; }.summaryGrid { grid-template-columns: 1fr 1fr; }.dependencyGrid { grid-template-columns: 1fr; }.filters, .policyForm { grid-template-columns: 1fr; }.detailRow { grid-template-columns: 1fr; gap: 4px; } }

@@ -36,6 +36,22 @@ describe('CPA refill console wiring', () => {
     expect(shouldPollCPARefillOverview('hidden')).toBe(false);
   });
 
+  it('shows Controller operating statistics on the production overview page', () => {
+    expect(pageSource).toContain('<OperatingStatisticsCards statistics={overview?.statistics} />');
+    expect(pageSource).toContain("cpa_refill.today_purchase_cost");
+    expect(pageSource).toContain("cpa_refill.supplier_available_balance");
+    expect(pageSource).toContain("cpa_refill.total_tokens_consumed");
+    expect(pageSource).toContain("cpa_refill.total_account_usage_cost");
+    for (const locale of [en, ru, zhCN, zhTW]) {
+      expect(locale.cpa_refill.operating_statistics).toBeTruthy();
+      expect(locale.cpa_refill.today_purchase_cost).toBeTruthy();
+      expect(locale.cpa_refill.supplier_available_balance).toBeTruthy();
+      expect(locale.cpa_refill.total_tokens_consumed).toBeTruthy();
+      expect(locale.cpa_refill.total_account_usage_cost).toBeTruthy();
+      expect(locale.cpa_refill.statistics_unavailable).toBeTruthy();
+    }
+  });
+
   it('renders Codex account identity, bounded usage and lifecycle fields', () => {
     expect(pageSource).toContain("accounts: ['email', 'status', 'usage_windows', 'imported_at', 'expires_at', 'last_request_at']");
     expect(pageSource).not.toContain("accounts: ['email', 'status', 'total_tokens', 'cost_micro_usd'");

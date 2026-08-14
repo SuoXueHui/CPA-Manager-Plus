@@ -12,7 +12,7 @@ vi.mock('./client', () => ({
   apiClient: mocks,
 }));
 
-import { cpaRefillApi } from './cpaRefill';
+import { cpaRefillApi, type CPARefillOverview } from './cpaRefill';
 
 beforeEach(() => {
   mocks.get.mockReset();
@@ -21,6 +21,27 @@ beforeEach(() => {
 });
 
 describe('cpaRefillApi', () => {
+  it('keeps operating statistics in the overview contract with integer money units', () => {
+    const overview: CPARefillOverview = {
+      mode: 'active',
+      status: 'healthy',
+      available_accounts: 4,
+      statistics: {
+        today_purchase_fen: 1234,
+        supplier_balance_fen: 49642,
+        supplier_held_fen: 1400,
+        supplier_available_fen: 48242,
+        total_tokens: 2499225033,
+        total_usage_micro_usd: 3126104500,
+        today_tokens: 107326090,
+        today_usage_micro_usd: 127056800,
+      },
+    };
+
+    expect(overview.statistics?.today_purchase_fen).toBe(1234);
+    expect(overview.statistics?.total_usage_micro_usd).toBe(3126104500);
+  });
+
   it('keeps the controller whitelist path relative to the configured management API base', async () => {
     mocks.get.mockResolvedValue({ mode: 'degraded', status: 'degraded', available_accounts: 0 });
 
