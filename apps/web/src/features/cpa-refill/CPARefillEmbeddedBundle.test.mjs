@@ -11,8 +11,10 @@ const embeddedPanelPath = path.resolve(
 );
 
 describe('CPA refill embedded management bundle', () => {
-  it('ships the localized policy conflict guidance used by the source page', () => {
+  it('ships the localized policy save guidance used by the source page', () => {
     const embeddedPanel = readFileSync(embeddedPanelPath, 'utf8');
     expect(embeddedPanel).toContain(zhCN.cpa_refill.policy_state_conflict);
+    expect(embeddedPanel).toContain(zhCN.cpa_refill.policy_saved_pending);
+    expect(embeddedPanel).toContain(zhCN.cpa_refill.policy_idempotency_conflict);
   });
 });

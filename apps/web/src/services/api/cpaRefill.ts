@@ -41,6 +41,10 @@ export interface CPARefillOverview {
   supplier?: Record<string, unknown>;
   usage?: Record<string, unknown>;
   statistics?: CPARefillStatistics;
+  activation?: {
+    ready: boolean;
+    reason_code?: string;
+  };
   dependencies?: Array<Record<string, unknown>>;
   generated_at?: string;
 }
@@ -142,9 +146,19 @@ export interface CPARefillPolicy {
   policy_version: number;
 }
 
-// Controller 使用稳定错误码表示策略版本变化或 Active 门禁未就绪；页面据此刷新权威状态并显示中文说明。
+// Controller 使用稳定错误码表示策略版本变化；页面据此刷新权威状态并显示中文说明。
 export const isCPARefillPolicyStateConflict = (error: unknown) =>
   error instanceof Error && error.message === 'state_conflict';
+
+// 幂等键冲突与 policy version 冲突含义不同；前端需丢弃旧键，下一次保存才能生成新键。
+export const isCPARefillPolicyIdempotencyConflict = (error: unknown) =>
+  error instanceof Error && error.message === 'idempotency_conflict';
+
+// Active 意图可以先保存；运行门禁未就绪时页面应明确提示“等待自动启用”，而不是误报保存失败。
+export const isCPARefillPolicyPendingActivation = (
+  policy: CPARefillPolicy,
+  overview: CPARefillOverview | null
+) => policy.desired_mode === 'active' && policy.purchase_enabled && overview?.activation?.ready === false;
 
 const compactQuery = (query: CPARefillListQuery) =>
   Object.fromEntries(

@@ -14,6 +14,8 @@ vi.mock('./client', () => ({
 
 import {
   cpaRefillApi,
+  isCPARefillPolicyIdempotencyConflict,
+  isCPARefillPolicyPendingActivation,
   isCPARefillPolicyStateConflict,
   type CPARefillOverview,
   type CPARefillPolicy,
@@ -30,6 +32,27 @@ describe('cpaRefillApi', () => {
     expect(isCPARefillPolicyStateConflict(new Error('state_conflict'))).toBe(true);
     expect(isCPARefillPolicyStateConflict(new Error('backend_unavailable'))).toBe(false);
     expect(isCPARefillPolicyStateConflict('state_conflict')).toBe(false);
+  });
+
+  it('recognizes policy idempotency conflicts separately from version conflicts', () => {
+    expect(isCPARefillPolicyIdempotencyConflict(new Error('idempotency_conflict'))).toBe(true);
+    expect(isCPARefillPolicyIdempotencyConflict(new Error('state_conflict'))).toBe(false);
+  });
+
+  it('marks a saved active purchase policy as pending until activation gates are ready', () => {
+    const policy = {
+      desired_mode: 'active',
+      purchase_enabled: true,
+    } as CPARefillPolicy;
+    expect(isCPARefillPolicyPendingActivation(policy, {
+      activation: { ready: false, reason_code: 'unknown_pricing' },
+    } as CPARefillOverview)).toBe(true);
+    expect(isCPARefillPolicyPendingActivation(policy, {
+      activation: { ready: true, reason_code: '' },
+    } as CPARefillOverview)).toBe(false);
+    expect(isCPARefillPolicyPendingActivation({ ...policy, purchase_enabled: false }, {
+      activation: { ready: false, reason_code: 'usage_warmup' },
+    } as CPARefillOverview)).toBe(false);
   });
 
   it('keeps the minimum healthy account count in the policy contract', () => {
