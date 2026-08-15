@@ -15,3 +15,6 @@
 - 轮询、页面重新可见与手工刷新可能并发；面板使用 request ID 仅接受最新结果，避免旧失败覆盖新成功状态。
 - 线上作者插件的“Codex 5h / 7d 额度透支续用”复核为关闭；核心面板数据来自 CPA 内置端点，不依赖插件功能。
 - 发布后 CPA 进程未重启，`started-at` 保持不变；观察窗口内 `evaluated +236`、`injected +9`、`success +9`，证明面板读取的是持续增长的核心运行计数。
+- 新版 CPA 状态包含可选 `account-retention-seconds` 与 `accounts`；每条账号记录按 observe/inject 分别给出请求数和终态结果。
+- Controller 的单账号行直接包含 `cpa_auth_id`，合并行在 `credentials[].cpa_auth_id` 保留每份凭证，因此 Manager 无需改 Controller 或数据库即可关联。
+- 账号条带复用页面共享分钟时钟与 15 秒核心状态轮询，不增加每行 timer；API 只请求当前可见账号的去重 auth ID。

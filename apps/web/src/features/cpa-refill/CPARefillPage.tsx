@@ -24,6 +24,9 @@ import {
   type CPARefillUsageWindow,
   type CPARefillUsageWindows,
   type CPACoreOverdraftConfig,
+  type CPACoreOverdraftAccountStatus,
+  type CPACoreOverdraftActionStatus,
+  type CPACoreOverdraftOutcomes,
   type CPACoreOverdraftRuntimeStatus,
   type CPACoreOverdraftStatusResponse,
 } from '@/services/api/cpaRefill';
@@ -357,6 +360,177 @@ const parseCoreOverdraftStatus = (value: unknown): CPACoreOverdraftStatusRespons
     ? response as CPACoreOverdraftStatusResponse
     : null;
 };
+
+const isCoreOverdraftOutcomes = (value: unknown): value is CPACoreOverdraftOutcomes => {
+  if (!value || typeof value !== 'object') return false;
+  const outcomes = value as Partial<CPACoreOverdraftOutcomes>;
+  return [
+    outcomes.success,
+    outcomes['usage-limit'],
+    outcomes['hard-stop'],
+    outcomes.canceled,
+    outcomes['other-failure'],
+  ].every(isCoreOverdraftCounter);
+};
+
+const isCoreOverdraftActionStatus = (value: unknown): value is CPACoreOverdraftActionStatus => {
+  if (!value || typeof value !== 'object') return false;
+  const action = value as Partial<CPACoreOverdraftActionStatus>;
+  if (!isCoreOverdraftCounter(action.requests) || !isCoreOverdraftOutcomes(action.outcomes)) return false;
+  const completed = Object.values(action.outcomes).reduce((total, count) => total + count, 0);
+  return completed <= action.requests;
+};
+
+const isCoreOverdraftAccountStatus = (value: unknown): value is CPACoreOverdraftAccountStatus => {
+  if (!value || typeof value !== 'object') return false;
+  const account = value as Partial<CPACoreOverdraftAccountStatus>;
+  const firstSeenAt = typeof account['first-seen-at'] === 'string' ? new Date(account['first-seen-at']) : null;
+  const lastSeenAt = typeof account['last-seen-at'] === 'string' ? new Date(account['last-seen-at']) : null;
+  return (
+    typeof account['auth-id'] === 'string' &&
+    account['auth-id'].trim() !== '' &&
+    Boolean(firstSeenAt && lastSeenAt && !Number.isNaN(firstSeenAt.getTime()) && !Number.isNaN(lastSeenAt.getTime())) &&
+    Boolean(firstSeenAt && lastSeenAt && firstSeenAt <= lastSeenAt) &&
+    isCoreOverdraftActionStatus(account.observed) &&
+    isCoreOverdraftActionStatus(account.injected)
+  );
+};
+
+type CoreOverdraftAccountContract = {
+  retentionSeconds: number;
+  accounts: CPACoreOverdraftAccountStatus[];
+};
+
+// 账号级字段是可选扩展；任一条坏数据都让账号条带关闭，但不影响上方全局状态卡。
+const parseCoreOverdraftAccountContract = (value: unknown): CoreOverdraftAccountContract | null => {
+  if (!value || typeof value !== 'object') return null;
+  const status = value as Partial<CPACoreOverdraftRuntimeStatus>;
+  if (
+    !isCoreOverdraftCounter(status['account-retention-seconds']) ||
+    status['account-retention-seconds'] <= 0 ||
+    !Array.isArray(status.accounts) ||
+    !status.accounts.every(isCoreOverdraftAccountStatus)
+  ) {
+    return null;
+  }
+  return { retentionSeconds: status['account-retention-seconds'], accounts: status.accounts };
+};
+
+const coreOverdraftAuthIDs = (account: Record<string, unknown>): string[] => {
+  const values = [account.cpa_auth_id];
+  for (const credential of credentialSummaries(account.credentials)) values.push(credential.cpa_auth_id);
+  return Array.from(new Set(values
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.trim())
+    .filter(Boolean)));
+};
+
+const coreOverdraftAuthIDsForItems = (items: Array<Record<string, unknown>>) =>
+  Array.from(new Set(items.flatMap(coreOverdraftAuthIDs)));
+
+const emptyCoreOverdraftOutcomes = (): CPACoreOverdraftOutcomes => ({
+  success: 0,
+  'usage-limit': 0,
+  'hard-stop': 0,
+  canceled: 0,
+  'other-failure': 0,
+});
+
+const emptyCoreOverdraftAction = (): CPACoreOverdraftActionStatus => ({
+  requests: 0,
+  outcomes: emptyCoreOverdraftOutcomes(),
+});
+
+const addCoreOverdraftAction = (
+  target: CPACoreOverdraftActionStatus,
+  source: CPACoreOverdraftActionStatus
+) => {
+  target.requests += source.requests;
+  target.outcomes.success += source.outcomes.success;
+  target.outcomes['usage-limit'] += source.outcomes['usage-limit'];
+  target.outcomes['hard-stop'] += source.outcomes['hard-stop'];
+  target.outcomes.canceled += source.outcomes.canceled;
+  target.outcomes['other-failure'] += source.outcomes['other-failure'];
+};
+
+// 合并账号必须按凭证 auth ID 汇总；邮箱相同不等于同一运行凭证，不能直接按邮箱关联。
+export function CoreOverdraftAccountStrip({
+  account,
+  status,
+  nowMS = 0,
+}: {
+  account: Record<string, unknown>;
+  status?: unknown;
+  nowMS?: number;
+}) {
+  const { t } = useTranslation();
+  const contract = parseCoreOverdraftAccountContract(status);
+  const authIDs = coreOverdraftAuthIDs(account);
+  if (!contract || authIDs.length === 0) return null;
+
+  const authIDSet = new Set(authIDs);
+  const matched = contract.accounts.filter((item) => authIDSet.has(item['auth-id']));
+  const retentionHours = Math.max(1, Math.ceil(contract.retentionSeconds / 3600));
+  const title = t('cpa_refill.core_overdraft_account_hint', { hours: retentionHours });
+  if (matched.length === 0) {
+    return (
+      <div className={styles.coreOverdraftAccountStrip} data-mode="empty" title={title}>
+        <strong>{t('cpa_refill.core_overdraft_account_label', { hours: retentionHours })}</strong>
+        <span className={styles.coreOverdraftAccountEmpty}>{t('cpa_refill.core_overdraft_account_no_activity')}</span>
+      </div>
+    );
+  }
+
+  const observed = emptyCoreOverdraftAction();
+  const injected = emptyCoreOverdraftAction();
+  let lastSeenMS = 0;
+  for (const item of matched) {
+    addCoreOverdraftAction(observed, item.observed);
+    addCoreOverdraftAction(injected, item.injected);
+    lastSeenMS = Math.max(lastSeenMS, new Date(item['last-seen-at']).getTime());
+  }
+  // observe/inject 的结果必须各自成组，避免热切模式后把观察成功误解为注入续用成功。
+  const actionRows = [
+    { key: 'injected', label: t('cpa_refill.core_overdraft_account_injected'), value: injected },
+    { key: 'observed', label: t('cpa_refill.core_overdraft_account_observed'), value: observed },
+  ].filter((row) => row.value.requests > 0);
+  const minutesAgo = nowMS > 0 && lastSeenMS > 0 ? Math.max(0, Math.floor((nowMS - lastSeenMS) / 60_000)) : null;
+  const lastSeenLabel = minutesAgo === null
+    ? new Date(lastSeenMS).toLocaleString()
+    : minutesAgo < 1
+      ? t('cpa_refill.core_overdraft_account_now')
+      : minutesAgo < 60
+        ? t('cpa_refill.core_overdraft_account_minutes_ago', { minutes: minutesAgo })
+        : t('cpa_refill.core_overdraft_account_hours_ago', { hours: Math.floor(minutesAgo / 60) });
+
+  return (
+    <div className={styles.coreOverdraftAccountStrip} data-mode={injected.requests > 0 ? 'inject' : 'observe'} title={title}>
+      <strong>{t('cpa_refill.core_overdraft_account_label', { hours: retentionHours })}</strong>
+      <div className={styles.coreOverdraftAccountMetrics}>
+        {actionRows.map((row) => {
+          const outcomeMetrics = [
+            { key: 'success', label: t('cpa_refill.core_overdraft_account_success'), count: row.value.outcomes.success },
+            { key: 'usage-limit', label: t('cpa_refill.core_overdraft_account_usage_limit'), count: row.value.outcomes['usage-limit'] },
+            { key: 'hard-stop', label: t('cpa_refill.core_overdraft_account_hard_stop'), count: row.value.outcomes['hard-stop'] },
+            { key: 'canceled', label: t('cpa_refill.core_overdraft_account_canceled'), count: row.value.outcomes.canceled },
+            { key: 'other-failure', label: t('cpa_refill.core_overdraft_account_other_failure'), count: row.value.outcomes['other-failure'] },
+          ].filter((metric) => metric.count > 0);
+          return (
+            <div className={styles.coreOverdraftAccountAction} data-action={row.key} key={row.key}>
+              <b>{t('cpa_refill.core_overdraft_account_count', { label: row.label, count: row.value.requests })}</b>
+              {outcomeMetrics.map((metric) => (
+                <span key={metric.key} data-metric={metric.key}>
+                  {t('cpa_refill.core_overdraft_account_count', metric)}
+                </span>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      <small>{lastSeenLabel}</small>
+    </div>
+  );
+}
 
 // 面板只展示 CPA 进程级实验计数，不能把 success 解释成逐账号或突破额度的确认值。
 export function CoreOverdraftStatusPanel({ value }: { value: unknown }) {
@@ -795,6 +969,7 @@ export function CPARefillPage() {
   const listRequestIDRef = useRef(0);
   const detailRequestIDRef = useRef(0);
   const coreOverdraftRequestIDRef = useRef(0);
+  const accountAuthIDsRef = useRef<string[]>([]);
   // 网络超时后保留相同意图的幂等键；只有明确成功才清除，避免人工重试重复采购。
   const pendingWriteKeysRef = useRef(new Map<string, string>());
 
@@ -838,7 +1013,7 @@ export function CPARefillPage() {
   const loadCoreOverdraftStatus = useCallback(async () => {
     const requestID = ++coreOverdraftRequestIDRef.current;
     try {
-      const nextStatus = await cpaRefillApi.coreOverdraftStatus();
+      const nextStatus = await cpaRefillApi.coreOverdraftStatus(accountAuthIDsRef.current);
       if (requestID !== coreOverdraftRequestIDRef.current) return;
       setCoreOverdraftStatus(nextStatus);
     } catch {
@@ -895,6 +1070,13 @@ export function CPARefillPage() {
         ? await cpaRefillApi.list<CPARefillAccountListItem>(resource, query)
         : await cpaRefillApi.list(resource, query);
       if (requestID !== listRequestIDRef.current) return;
+      if (resource === 'accounts') {
+        const pageAuthIDs = coreOverdraftAuthIDsForItems(response.items);
+        accountAuthIDsRef.current = append
+          ? Array.from(new Set([...accountAuthIDsRef.current, ...pageAuthIDs]))
+          : pageAuthIDs;
+        void loadCoreOverdraftStatus();
+      }
       setItems((current) => (append ? [...current, ...response.items] : response.items));
       setNextCursor(response.page.next_cursor || '');
       setHasMore(response.page.has_more);
@@ -905,7 +1087,7 @@ export function CPARefillPage() {
     } finally {
       if (requestID === listRequestIDRef.current) setListLoading(false);
     }
-  }, [filtersByResource, nextCursor, t]);
+  }, [filtersByResource, loadCoreOverdraftStatus, nextCursor, t]);
 
   const loadPolicy = useCallback(async () => {
     setPolicyLoading(true);
@@ -1161,7 +1343,10 @@ export function CPARefillPage() {
                   return <td key={column}><AccountStatusCell item={item} /></td>;
                 }
                 return column === 'usage_windows'
-                  ? <td key={column} className={styles.usageWindowTableCell}><UsageWindowCell value={item[column]} quotaValue={item.quota_windows} nowMS={quotaClockMS} /></td>
+                  ? <td key={column} className={styles.usageWindowTableCell}>
+                      <UsageWindowCell value={item[column]} quotaValue={item.quota_windows} nowMS={quotaClockMS} />
+                      <CoreOverdraftAccountStrip account={item} status={coreOverdraftStatus?.status} nowMS={quotaClockMS} />
+                    </td>
                   : <td key={column} title={displayValue(column, item[column], t)}>{displayValue(column, item[column], t)}</td>;
               })}{(activeTab === 'accounts' || activeTab === 'orders') && <td><button type="button" className={styles.detailButton} onClick={() => void openDetail(item)}>{t('cpa_refill.view_detail')}</button></td>}</tr>)}</tbody>
             </table>

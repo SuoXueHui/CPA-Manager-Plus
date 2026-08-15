@@ -122,6 +122,19 @@ describe('cpaRefillApi', () => {
     expect(requestConfig.validateStatus?.(500)).toBe(false);
   });
 
+  it('deduplicates visible account auth IDs and uses repeated query keys for the core snapshot', async () => {
+    mocks.get.mockResolvedValue({ config: {}, status: { accounts: [] } });
+
+    await cpaRefillApi.coreOverdraftStatus([' auth-b ', '', 'auth-a', 'auth-b']);
+
+    expect(mocks.get).toHaveBeenCalledWith('/codex-weekly-overdraft', {
+      params: { 'auth-id': ['auth-b', 'auth-a'] },
+      paramsSerializer: { indexes: null },
+      timeout: 5_000,
+      validateStatus: expect.any(Function),
+    });
+  });
+
   it('loads filtered account pages and account details through the Manager whitelist', async () => {
     mocks.get.mockResolvedValueOnce({ items: [], page: { page_size: 50, has_more: false } });
     mocks.get.mockResolvedValueOnce({ id: 42 });

@@ -31,3 +31,11 @@
 - 真实 Chrome 已验证账号页显示：inject、10% 灰度、S1、仅 OAuth，以及 evaluated/observed/injected/success/429/hard-stop/canceled/other-failure 全部计数。
 - 同一 CPA 进程观察窗口内 `evaluated 30179→30415`、`injected 1953→1962`、`success 1705→1714`，核心功能持续运行且 9 次注入全部进入成功终态；作者插件对应透支开关为关闭。
 - 已检查项目 `AGENTS.md`，现有发布与内嵌资产规则足够，本次无需更新；已同步 Obsidian 当前阶段、接口契约、任务看板与变更记录。
+- 用户进一步确认一期需要账号级破限信息，但账号有效期短，无需持久化；方案调整为 CPA 内存保留 6 小时、Manager 当前页凭证关联。
+- 新增前端失败测试，覆盖合并凭证汇总、observe/inject 语义隔离、无活动/旧 CPA 降级、坏 DTO、过滤查询、四语种与内嵌 bundle 门禁。
+- 实现账号 DTO、严格可选解析、`cpa_auth_id` 关联、合并账号汇总、当前页 auth ID 过滤和紧凑 `CORE 6h` 条带。
+- 账号功能定向验证通过：4 files / 31 tests；type-check 通过。内嵌 bundle 仍待 production build 刷新。
+- 补充动作分组回归，账号条带现在同时保留 observe/inject 各自的成功和失败结果，避免热切模式后误归因。
+- 新鲜定向验证通过：4 files / 31 tests。
+- 已刷新并逐字节同步 Manager 内嵌 `management.html`，新账号指标和四语言文案标记均存在。
+- 新鲜全量验证通过：前端 `146 files / 1431 tests`、type-check、lint；Manager Server `go test ./...`、`go test -race ./...`、`go vet ./...`、`cmd/cpa-manager-plus` build；`cmp`、`git diff --check`。
