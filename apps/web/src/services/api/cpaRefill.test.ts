@@ -112,7 +112,14 @@ describe('cpaRefillApi', () => {
 
     await cpaRefillApi.coreOverdraftStatus();
 
-    expect(mocks.get).toHaveBeenCalledWith('/codex-weekly-overdraft', { timeout: 5_000 });
+    expect(mocks.get).toHaveBeenCalledWith('/codex-weekly-overdraft', {
+      timeout: 5_000,
+      validateStatus: expect.any(Function),
+    });
+    const requestConfig = mocks.get.mock.calls[0]?.[1] as { validateStatus?: (status: number) => boolean };
+    expect(requestConfig.validateStatus?.(200)).toBe(true);
+    expect(requestConfig.validateStatus?.(401)).toBe(true);
+    expect(requestConfig.validateStatus?.(500)).toBe(false);
   });
 
   it('loads filtered account pages and account details through the Manager whitelist', async () => {

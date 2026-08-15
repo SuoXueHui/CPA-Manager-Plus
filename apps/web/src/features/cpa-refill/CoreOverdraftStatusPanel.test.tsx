@@ -13,10 +13,11 @@ const translations: Record<string, string> = {
   'cpa_refill.core_overdraft_evaluated': '评估',
   'cpa_refill.core_overdraft_injected': '实际注入',
   'cpa_refill.core_overdraft_observed': '观察样本',
-  'cpa_refill.core_overdraft_success_response': '注入后成功响应',
-  'cpa_refill.core_overdraft_observe_success_response': '观察样本成功响应',
+  'cpa_refill.core_overdraft_process_success': '进程累计成功响应',
   'cpa_refill.core_overdraft_usage_limit': '429',
   'cpa_refill.core_overdraft_hard_stop': '硬停止',
+  'cpa_refill.core_overdraft_canceled': '已取消',
+  'cpa_refill.core_overdraft_other_failure': '其他失败',
   'cpa_refill.core_overdraft_skipped': '查看跳过原因',
   'cpa_refill.core_overdraft_started_at': '统计起点',
   'cpa_refill.core_overdraft_oauth_only': '仅 OAuth',
@@ -59,14 +60,14 @@ describe('CoreOverdraftStatusPanel', () => {
             status: {
               'started-at': '2026-08-15T10:00:00Z',
               evaluated: 169,
-              observed: 0,
+              observed: 3,
               injected: 9,
               skipped: { 'non-canary': 80, 'unsupported-tail': 80 },
               outcomes: {
                 success: 7,
                 'usage-limit': 1,
                 'hard-stop': 0,
-                canceled: 0,
+                canceled: 2,
                 'other-failure': 1,
               },
             },
@@ -82,11 +83,15 @@ describe('CoreOverdraftStatusPanel', () => {
     expect(output).toContain('S1 · 1 pair');
     expect(output).toContain('仅 OAuth');
     expect(output).toContain('评估 169');
+    expect(output).toContain('观察样本 3');
     expect(output).toContain('实际注入 9');
-    expect(output).toContain('注入后成功响应 7');
+    expect(output).toContain('进程累计成功响应 7');
     expect(output).toContain('429 1');
+    expect(output).toContain('已取消 2');
+    expect(output).toContain('其他失败 1');
     expect(output).toContain('全局进程指标，不是逐账号确认透支。');
     expect(output).not.toContain('透支成功');
+    expect(output).not.toContain('注入后成功响应');
   });
 
   it('fails closed when the core endpoint is unavailable or malformed', () => {
@@ -101,7 +106,7 @@ describe('CoreOverdraftStatusPanel', () => {
     expect(output).not.toContain('评估 0');
   });
 
-  it('does not label observe-mode outcomes as injected responses', () => {
+  it('keeps process outcomes mode-neutral after a hot mode change', () => {
     let renderer!: ReactTestRenderer;
     act(() => {
       renderer = create(
@@ -136,9 +141,10 @@ describe('CoreOverdraftStatusPanel', () => {
     });
 
     const output = JSON.stringify(renderer.toJSON());
-    expect(output).toContain('观察样本成功响应 4');
+    expect(output).toContain('进程累计成功响应 4');
     expect(output).toContain('观察样本 5');
-    expect(output).not.toContain('实际注入 0');
+    expect(output).toContain('实际注入 0');
     expect(output).not.toContain('注入后成功响应');
+    expect(output).not.toContain('观察样本成功响应');
   });
 });

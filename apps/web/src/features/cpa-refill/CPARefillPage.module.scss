@@ -63,10 +63,10 @@
 .coreOverdraftPanel[data-mode='disabled'] .coreOverdraftState, .coreOverdraftUnavailable .coreOverdraftState { border-color: var(--border-subtle); color: var(--text-secondary); background: var(--bg-primary); }
 .coreOverdraftConfig { display: flex; flex-wrap: wrap; gap: 7px; }
 .coreOverdraftConfig span { display: inline-flex; align-items: center; min-height: 25px; padding: 4px 8px; border: 1px solid color-mix(in srgb, #2563eb 18%, var(--border-subtle)); border-radius: 8px; color: var(--text-secondary); background: color-mix(in srgb, var(--bg-primary) 86%, transparent); font-size: 10px; font-weight: 700; }
-.coreOverdraftMetrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.coreOverdraftMetrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 8px; }
 .coreOverdraftMetrics article { min-width: 0; padding: 10px 11px; border: 1px solid color-mix(in srgb, var(--border-subtle) 82%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--bg-primary) 90%, transparent); }
 .coreOverdraftMetrics article[data-metric='success'] { border-color: color-mix(in srgb, #0ca678 27%, var(--border-subtle)); }
-.coreOverdraftMetrics article[data-metric='usage-limit'], .coreOverdraftMetrics article[data-metric='hard-stop'] { border-color: color-mix(in srgb, #ef4444 19%, var(--border-subtle)); }
+.coreOverdraftMetrics article[data-metric='usage-limit'], .coreOverdraftMetrics article[data-metric='hard-stop'], .coreOverdraftMetrics article[data-metric='other-failure'] { border-color: color-mix(in srgb, #ef4444 19%, var(--border-subtle)); }
 .coreOverdraftMetrics span, .coreOverdraftMetrics strong { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .coreOverdraftMetrics span { color: var(--text-secondary); font-size: 9px; font-weight: 670; }
 .coreOverdraftMetrics strong { margin-top: 5px; color: var(--text-primary); font-size: 17px; letter-spacing: -.02em; }

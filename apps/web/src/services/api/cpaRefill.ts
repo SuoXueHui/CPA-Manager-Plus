@@ -4,6 +4,9 @@ const READ_TIMEOUT_MS = 5_000;
 const WRITE_TIMEOUT_MS = 10_000;
 // apiClient 的 baseURL 已包含 /v0/management，这里只保留 Manager 白名单的相对路径。
 const BASE_PATH = '/cpa-refill';
+// 核心透支面板是可选观测：上游 CPA key 失效时只降级面板，不能触发 CPAMP 全局登出。
+const acceptCoreOverdraftUnauthorized = (status: number) =>
+  (status >= 200 && status < 300) || status === 401;
 
 export type CPARefillListResource =
   | 'accounts'
@@ -206,6 +209,7 @@ export const cpaRefillApi = {
   coreOverdraftStatus: () =>
     apiClient.get<CPACoreOverdraftStatusResponse>('/codex-weekly-overdraft', {
       timeout: READ_TIMEOUT_MS,
+      validateStatus: acceptCoreOverdraftUnauthorized,
     }),
 
   list: <TItem extends Record<string, unknown> = Record<string, unknown>>(

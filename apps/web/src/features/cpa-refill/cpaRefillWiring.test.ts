@@ -56,12 +56,20 @@ describe('CPA refill console wiring', () => {
     expect(pageSource).toContain('CoreOverdraftStatusPanel');
     expect(pageSource).toContain('cpaRefillApi.coreOverdraftStatus');
     expect(pageSource).toContain('coreOverdraftStatus');
-    expect(pageSource).toContain("cpa_refill.core_overdraft_success_response");
+    expect(pageSource).toContain('coreOverdraftRequestIDRef');
+    expect(pageSource).toContain('requestID !== coreOverdraftRequestIDRef.current');
+    expect(pageSource).toContain("cpa_refill.core_overdraft_process_success");
+    expect(pageSource).toContain("cpa_refill.core_overdraft_canceled");
+    expect(pageSource).toContain("cpa_refill.core_overdraft_other_failure");
+    expect(pageSource).not.toContain("cpa_refill.core_overdraft_success_response");
+    expect(pageSource).not.toContain("cpa_refill.core_overdraft_observe_success_response");
     expect(pageSource).not.toContain('cpa_refill.core_overdraft_bypass_success');
     for (const locale of [en, ru, zhCN, zhTW]) {
       expect(locale.cpa_refill.core_overdraft_title).toBeTruthy();
       expect(locale.cpa_refill.core_overdraft_global_hint).toBeTruthy();
-      expect(locale.cpa_refill.core_overdraft_success_response).toBeTruthy();
+      expect(locale.cpa_refill.core_overdraft_process_success).toBeTruthy();
+      expect(locale.cpa_refill.core_overdraft_canceled).toBeTruthy();
+      expect(locale.cpa_refill.core_overdraft_other_failure).toBeTruthy();
       expect(locale.cpa_refill.core_overdraft_unavailable).toBeTruthy();
     }
   });

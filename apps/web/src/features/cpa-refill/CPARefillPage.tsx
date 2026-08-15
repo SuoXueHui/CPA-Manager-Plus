@@ -391,18 +391,18 @@ export function CoreOverdraftStatusPanel({ value }: { value: unknown }) {
   const startedAt = new Date(status['started-at']).toLocaleString();
   const metrics = [
     { key: 'evaluated', label: t('cpa_refill.core_overdraft_evaluated'), value: status.evaluated },
-    config.mode === 'inject'
-      ? { key: 'injected', label: t('cpa_refill.core_overdraft_injected'), value: status.injected }
-      : { key: 'observed', label: t('cpa_refill.core_overdraft_observed'), value: status.observed },
+    { key: 'observed', label: t('cpa_refill.core_overdraft_observed'), value: status.observed },
+    { key: 'injected', label: t('cpa_refill.core_overdraft_injected'), value: status.injected },
     {
       key: 'success',
-      label: t(config.mode === 'inject'
-        ? 'cpa_refill.core_overdraft_success_response'
-        : 'cpa_refill.core_overdraft_observe_success_response'),
+      // 结果计数跨 observe/inject 热更新累计，不能按当前 mode 反推历史请求是否真的注入。
+      label: t('cpa_refill.core_overdraft_process_success'),
       value: status.outcomes.success,
     },
     { key: 'usage-limit', label: t('cpa_refill.core_overdraft_usage_limit'), value: status.outcomes['usage-limit'] },
     { key: 'hard-stop', label: t('cpa_refill.core_overdraft_hard_stop'), value: status.outcomes['hard-stop'] },
+    { key: 'canceled', label: t('cpa_refill.core_overdraft_canceled'), value: status.outcomes.canceled },
+    { key: 'other-failure', label: t('cpa_refill.core_overdraft_other_failure'), value: status.outcomes['other-failure'] },
   ];
 
   return (
@@ -794,6 +794,7 @@ export function CPARefillPage() {
   const [actionLoading, setActionLoading] = useState('');
   const listRequestIDRef = useRef(0);
   const detailRequestIDRef = useRef(0);
+  const coreOverdraftRequestIDRef = useRef(0);
   // 网络超时后保留相同意图的幂等键；只有明确成功才清除，避免人工重试重复采购。
   const pendingWriteKeysRef = useRef(new Map<string, string>());
 
@@ -835,9 +836,13 @@ export function CPARefillPage() {
 
   // 核心状态读取失败只降级当前面板，不污染自动补号 Controller 的页面错误状态。
   const loadCoreOverdraftStatus = useCallback(async () => {
+    const requestID = ++coreOverdraftRequestIDRef.current;
     try {
-      setCoreOverdraftStatus(await cpaRefillApi.coreOverdraftStatus());
+      const nextStatus = await cpaRefillApi.coreOverdraftStatus();
+      if (requestID !== coreOverdraftRequestIDRef.current) return;
+      setCoreOverdraftStatus(nextStatus);
     } catch {
+      if (requestID !== coreOverdraftRequestIDRef.current) return;
       setCoreOverdraftStatus(null);
     }
   }, []);

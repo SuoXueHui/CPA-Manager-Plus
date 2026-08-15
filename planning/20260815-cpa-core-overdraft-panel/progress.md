@@ -18,3 +18,8 @@
 - 首次 Manager Server 综合验证命令因包含 `rm -f` 被执行环境门禁拒绝，尚未执行 Go 测试本体；已改用安全清理方式继续。
 - 代码审查发现 `codex-weekly-overdraft` 会被 Manager 当作未知插件 management 路由；已先新增失败测试，再将其登记为 CPA 内置路由，定向 RED/GREEN 验证通过。
 - 最终功能分支验证通过：前端 145 files / 1425 tests、type-check、lint、production build；Manager Server 全量测试、race、vet、`cmd/cpa-manager-plus` build；`git diff --check` 和内嵌 bundle 关键标记校验均通过。
+- 线上发布前基线确认 Manager 镜像为 `policy-pending-2deb2e6a-amd64`，healthy、restart=0、OOM=false；CPA 核心为 `codex-weekly-overdraft-6e8229af-cgo-amd64`，restart=0、OOM=false。
+- 首次读取核心状态的 SSH 命令因本地 shell 提前展开远端 `$()` 而失败，未修改线上状态；已切换到单引号 heredoc 方式继续。
+- 独立代码审查提出 4 个 Important 和 1 个 Minor：内嵌 bundle 落后、success 被当前 mode 误归因、进程计数未完整显示、可选端点 401 触发全局退出，以及并发刷新旧结果覆盖竞态。
+- 已按 TDD 修复全部审查项：成功计数改为模式中立文案，始终展示 observed/injected 和全部 outcomes，401 仅降级面板，状态请求 only-latest-wins，并增加内嵌 bundle 关键标记测试。
+- 审查修复后的新鲜验证通过：前端 `145 files / 1426 tests`、type-check、lint、production build；Manager Server `go test ./...`、`go test -race ./...`、`go vet ./...`、`cmd/cpa-manager-plus` build；`git diff --check` 与源码/内嵌 bundle 标记一致性检查。
