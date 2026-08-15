@@ -15,8 +15,8 @@
 2. [completed] TDD：新增 API 契约与面板渲染失败测试。
 3. [completed] 实现 DTO、独立加载、状态面板、样式和多语言。
 4. [completed] 执行定向测试、全量测试、类型检查、lint、构建和嵌入资产验证。
-5. [in_progress] 代码审查、合并 Manager `master`、构建发布并做线上只读验证。
-6. [pending] 检查 AGENTS.md 与项目知识文档是否需要同步。
+5. [completed] 代码审查、合并 Manager `master`、构建发布并做线上只读验证。
+6. [completed] 检查 AGENTS.md 与项目知识文档并同步长期有效结论。
 
 ## 风险与边界
 - 指标是 CPA 进程启动以来的全局原子计数，进程重启会清零。
@@ -36,3 +36,4 @@
 | Manager Server 验证命令中的 `rm -f` 被执行环境安全门禁拒绝 | 1 | 改用固定临时输出路径，并由 Python `Path.unlink()` 清理，不重复使用被拒绝的删除命令。 |
 | 首次线上核心状态探针把远端脚本放入双引号，导致本地 shell 提前展开 `$()` | 1 | 改用 `ssh ... 'bash -s' <<'REMOTE'` 的单引号 heredoc，把脚本原样送到远端且不输出密钥。 |
 | 独立审查发现内嵌 `management.html` 落后、进程累计结果误按当前 mode 归因、计数不完整和可选端点 401 触发全局退出 | 1 | 增加失败测试后改为模式中立结果文案，完整显示全部计数，请求级接管 401 仅降级面板，重新构建并增加内嵌 bundle 回归门禁。 |
+| 本机 Docker buildx 在 Go 编译阶段报 `no space left on device` | 1 | 只读确认是 Docker Desktop 构建缓存空间不足；未做广泛清理，改用已验证前端产物的临时 Go 源码副本交叉编译 linux/amd64，再在生产机用最小运行时 Dockerfile 构建镜像。 |

@@ -13,3 +13,5 @@
 - Manager 的通用代理会把未知 management 一级路径视为插件路由；`codex-weekly-overdraft` 是 CPA 核心内置端点，已加入内置路径集合，避免错误走插件来源改写和调用方认证兼容分支。
 - 该状态端点属于可选观测；上游 CPA Management Key 失效导致 401 时，请求级 `validateStatus` 会将其交给严格 DTO 降级，不触发 CPAMP 全局 `unauthorized` 退出。
 - 轮询、页面重新可见与手工刷新可能并发；面板使用 request ID 仅接受最新结果，避免旧失败覆盖新成功状态。
+- 线上作者插件的“Codex 5h / 7d 额度透支续用”复核为关闭；核心面板数据来自 CPA 内置端点，不依赖插件功能。
+- 发布后 CPA 进程未重启，`started-at` 保持不变；观察窗口内 `evaluated +236`、`injected +9`、`success +9`，证明面板读取的是持续增长的核心运行计数。

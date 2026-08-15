@@ -23,3 +23,11 @@
 - 独立代码审查提出 4 个 Important 和 1 个 Minor：内嵌 bundle 落后、success 被当前 mode 误归因、进程计数未完整显示、可选端点 401 触发全局退出，以及并发刷新旧结果覆盖竞态。
 - 已按 TDD 修复全部审查项：成功计数改为模式中立文案，始终展示 observed/injected 和全部 outcomes，401 仅降级面板，状态请求 only-latest-wins，并增加内嵌 bundle 关键标记测试。
 - 审查修复后的新鲜验证通过：前端 `145 files / 1426 tests`、type-check、lint、production build；Manager Server `go test ./...`、`go test -race ./...`、`go vet ./...`、`cmd/cpa-manager-plus` build；`git diff --check` 与源码/内嵌 bundle 标记一致性检查。
+- 功能分支已合并到 Manager `master@ef4bbd92` 并推送 fork `master`。
+- 发布前再次执行完整门禁：前端 `145 files / 1426 tests`、type-check、lint、production build、内嵌 bundle 测试；Manager Server full test/race/vet/build 与 `git diff --check` 均通过。
+- 本机 buildx 因 Docker Desktop 构建空间不足失败；未清理共享缓存，改为在临时副本中用当前前端 `dist/index.html` 交叉编译 linux/amd64，二进制 SHA256 为 `c3696ae0753a9d904944faa1b9d57d47fce4586a80b234dc157ddd3371274046`。
+- 线上只重建 Manager 为 `cpa-manager-plus:core-overdraft-ef4bbd92-amd64`；Controller 与 CPA 容器 ID 未变化。回滚目录：`/data/apps/cpa-manager-plus/releases/core-overdraft-ef4bbd92-20260815T114518Z/`。
+- 发布后 `/health` 连续三次 200，核心状态与 management 页面均 200；Manager healthy、restart=0、OOM=false，页面包含当前版本和核心面板标记，浏览器控制台无 warning/error。
+- 真实 Chrome 已验证账号页显示：inject、10% 灰度、S1、仅 OAuth，以及 evaluated/observed/injected/success/429/hard-stop/canceled/other-failure 全部计数。
+- 同一 CPA 进程观察窗口内 `evaluated 30179→30415`、`injected 1953→1962`、`success 1705→1714`，核心功能持续运行且 9 次注入全部进入成功终态；作者插件对应透支开关为关闭。
+- 已检查项目 `AGENTS.md`，现有发布与内嵌资产规则足够，本次无需更新；已同步 Obsidian 当前阶段、接口契约、任务看板与变更记录。
