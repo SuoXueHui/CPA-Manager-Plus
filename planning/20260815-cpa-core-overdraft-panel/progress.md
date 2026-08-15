@@ -39,3 +39,4 @@
 - 新鲜定向验证通过：4 files / 31 tests。
 - 已刷新并逐字节同步 Manager 内嵌 `management.html`，新账号指标和四语言文案标记均存在。
 - 新鲜全量验证通过：前端 `146 files / 1431 tests`、type-check、lint；Manager Server `go test ./...`、`go test -race ./...`、`go vet ./...`、`cmd/cpa-manager-plus` build；`cmp`、`git diff --check`。
+- 账号扩展已合并到 Manager `master@e00e79b6`；合并后前端测试 `146 files / 1431 tests`、type-check、lint 与 Manager Server full test/race/vet 通过。

@@ -46,3 +46,4 @@
 | 账号条带动作分组测试直接序列化 React Fiber，触发循环引用错误 | 1 | 改为读取动作分组下的 `span` 文本，只校验用户可见结果。 |
 | 账号条带源码完成后先跑全量测试，内嵌 bundle 门禁按预期拦截陈旧 `management.html` | 1 | 执行 production build 后按现有发布流程将 `apps/web/dist/index.html` 同步到内嵌文件，`cmp` 和 bundle 回归均通过。 |
 | 账号扩展分支合并回 Manager `master` 时，与先前全局面板发布记录在三个 planning 文件中冲突 | 1 | 仅合并文档历史：保留先前线上验证证据，并追加本次 6 小时账号统计的方案、验证和发布阶段。 |
+| Manager `master` 合并后在主工作树重新 production build，新 `dist/index.html` 与分支中的内嵌产物字节不同 | 1 | 以合并后 `master` 的新鲜构建为权威产物，再次同步 `management.html` 并重跑内嵌门禁。 |
