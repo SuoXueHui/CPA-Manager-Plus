@@ -128,6 +128,23 @@ describe('CPA refill console wiring', () => {
     }
   });
 
+  it('confirms that active intent was saved while runtime gates are still pending', () => {
+    expect(pageSource).toContain('isCPARefillPolicyPendingActivation(savedPolicy, latestOverview)');
+    expect(pageSource).toContain("t('cpa_refill.policy_saved_pending')");
+    expect(zhCN.cpa_refill.policy_saved_pending).toContain('已保存');
+    expect(zhCN.cpa_refill.policy_saved_pending).toContain('自动启用');
+    for (const locale of [en, ru, zhCN, zhTW]) {
+      expect(locale.cpa_refill.policy_saved_pending).toBeTruthy();
+    }
+  });
+
+  it('drops a collided policy idempotency key so the next save can use a new key', () => {
+    expect(pageSource).toContain('isCPARefillPolicyIdempotencyConflict(saveError)');
+    expect(pageSource).toContain('pendingWriteKeysRef.current.delete(intent.fingerprint)');
+    expect(pageSource).toContain("t('cpa_refill.policy_idempotency_conflict')");
+    expect(zhCN.cpa_refill.policy_idempotency_conflict).toContain('重新保存');
+  });
+
   it('renders account details with the shared modal drawer and resilient long-field layout', () => {
     expect(pageSource).toContain("import { Drawer } from '@/components/ui/Drawer'");
     expect(pageSource).toContain('<Drawer');

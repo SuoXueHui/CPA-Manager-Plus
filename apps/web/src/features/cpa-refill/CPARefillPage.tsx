@@ -8,6 +8,8 @@ import type { SelectOption } from '@/components/ui/Select';
 import { QuotaInfoTooltip } from '@/components/quota';
 import {
   cpaRefillApi,
+  isCPARefillPolicyIdempotencyConflict,
+  isCPARefillPolicyPendingActivation,
   isCPARefillPolicyStateConflict,
   type CPARefillAction,
   type CPARefillAccountListItem,
@@ -667,10 +669,13 @@ export function CPARefillPage() {
   const loadOverview = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
-      setOverview(await cpaRefillApi.overview());
+      const latestOverview = await cpaRefillApi.overview();
+      setOverview(latestOverview);
       setError('');
+      return latestOverview;
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : t('cpa_refill.load_failed'));
+      return null;
     } finally {
       if (!quiet) setLoading(false);
     }
@@ -850,16 +855,25 @@ export function CPARefillPage() {
     const intent = writeIntent('policy', policy);
     setPolicyLoading(true);
     try {
-      setPolicy(await cpaRefillApi.updatePolicy(policy, intent.key));
+      const savedPolicy = await cpaRefillApi.updatePolicy(policy, intent.key);
+      setPolicy(savedPolicy);
       pendingWriteKeysRef.current.delete(intent.fingerprint);
-      showNotification(t('cpa_refill.policy_saved'), 'success');
-      await loadOverview(true);
+      const latestOverview = await loadOverview(true);
+      showNotification(
+        isCPARefillPolicyPendingActivation(savedPolicy, latestOverview)
+          ? t('cpa_refill.policy_saved_pending')
+          : t('cpa_refill.policy_saved'),
+        'success'
+      );
     } catch (saveError) {
       if (isCPARefillPolicyStateConflict(saveError)) {
-        // 冲突可能来自并发 policy version 或 Active 新鲜度门禁；两种情况都应立即刷新权威状态，
-        // 避免用户继续拿旧版本重复提交，并且不要把后端英文错误码直接暴露到中文页面。
+        // 真实冲突只表示 policy version 已变化；立即刷新，避免用户继续拿旧版本重复提交。
         await Promise.all([loadOverview(true), loadPolicy()]);
         showNotification(t('cpa_refill.policy_state_conflict'), 'error');
+      } else if (isCPARefillPolicyIdempotencyConflict(saveError)) {
+        // 冲突键无法通过原样重试恢复；清除后让下一次保存生成全新的幂等键。
+        pendingWriteKeysRef.current.delete(intent.fingerprint);
+        showNotification(t('cpa_refill.policy_idempotency_conflict'), 'error');
       } else {
         showNotification(saveError instanceof Error ? saveError.message : t('cpa_refill.action_failed'), 'error');
       }
