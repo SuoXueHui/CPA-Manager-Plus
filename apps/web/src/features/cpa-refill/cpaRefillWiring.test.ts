@@ -52,6 +52,20 @@ describe('CPA refill console wiring', () => {
     }
   });
 
+  it('shows CPA core overdraft runtime status above the account filters', () => {
+    expect(pageSource).toContain('CoreOverdraftStatusPanel');
+    expect(pageSource).toContain('cpaRefillApi.coreOverdraftStatus');
+    expect(pageSource).toContain('coreOverdraftStatus');
+    expect(pageSource).toContain("cpa_refill.core_overdraft_success_response");
+    expect(pageSource).not.toContain('cpa_refill.core_overdraft_bypass_success');
+    for (const locale of [en, ru, zhCN, zhTW]) {
+      expect(locale.cpa_refill.core_overdraft_title).toBeTruthy();
+      expect(locale.cpa_refill.core_overdraft_global_hint).toBeTruthy();
+      expect(locale.cpa_refill.core_overdraft_success_response).toBeTruthy();
+      expect(locale.cpa_refill.core_overdraft_unavailable).toBeTruthy();
+    }
+  });
+
   it('renders Codex account identity, bounded usage and lifecycle fields', () => {
     expect(pageSource).toContain("accounts: ['email', 'status', 'usage_windows', 'imported_at', 'expires_at', 'last_request_at']");
     expect(pageSource).not.toContain("accounts: ['email', 'status', 'total_tokens', 'cost_micro_usd'");

@@ -104,6 +104,17 @@ describe('cpaRefillApi', () => {
     expect(mocks.get).toHaveBeenCalledWith('/cpa-refill/overview', { timeout: 5_000 });
   });
 
+  it('loads the CPA core overdraft status through the existing management proxy', async () => {
+    mocks.get.mockResolvedValue({
+      config: { enabled: true, mode: 'inject', 'canary-percent': 10, 'pair-count': 1 },
+      status: { evaluated: 169, injected: 9, outcomes: { success: 7 } },
+    });
+
+    await cpaRefillApi.coreOverdraftStatus();
+
+    expect(mocks.get).toHaveBeenCalledWith('/codex-weekly-overdraft', { timeout: 5_000 });
+  });
+
   it('loads filtered account pages and account details through the Manager whitelist', async () => {
     mocks.get.mockResolvedValueOnce({ items: [], page: { page_size: 50, has_more: false } });
     mocks.get.mockResolvedValueOnce({ id: 42 });

@@ -23,6 +23,9 @@ import {
   type CPARefillStatistics,
   type CPARefillUsageWindow,
   type CPARefillUsageWindows,
+  type CPACoreOverdraftConfig,
+  type CPACoreOverdraftRuntimeStatus,
+  type CPACoreOverdraftStatusResponse,
 } from '@/services/api/cpaRefill';
 import { useNotificationStore } from '@/stores';
 import { CPA_REFILL_OVERVIEW_POLL_MS, shouldPollCPARefillOverview } from './polling';
@@ -300,6 +303,154 @@ const useMinuteClock = () => {
   }, []);
   return nowMS;
 };
+
+const isCoreOverdraftCounter = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+
+const isCoreOverdraftConfig = (value: unknown): value is CPACoreOverdraftConfig => {
+  if (!value || typeof value !== 'object') return false;
+  const config = value as Partial<CPACoreOverdraftConfig>;
+  return (
+    typeof config.enabled === 'boolean' &&
+    (config.mode === 'observe' || config.mode === 'inject') &&
+    isCoreOverdraftCounter(config['canary-percent']) &&
+    config['canary-percent'] >= 1 &&
+    config['canary-percent'] <= 100 &&
+    (config['pair-count'] === 1 || config['pair-count'] === 2 || config['pair-count'] === 4) &&
+    (config['tail-policy'] === 'user-only' || config['tail-policy'] === 'user-and-tool-output') &&
+    typeof config['oauth-only'] === 'boolean' &&
+    isCoreOverdraftCounter(config['max-body-bytes']) &&
+    config['max-body-bytes'] > 0
+  );
+};
+
+const isCoreOverdraftRuntimeStatus = (value: unknown): value is CPACoreOverdraftRuntimeStatus => {
+  if (!value || typeof value !== 'object') return false;
+  const status = value as Partial<CPACoreOverdraftRuntimeStatus>;
+  const startedAt = typeof status['started-at'] === 'string' ? new Date(status['started-at']) : null;
+  if (!startedAt || Number.isNaN(startedAt.getTime())) return false;
+  if (
+    !isCoreOverdraftCounter(status.evaluated) ||
+    !isCoreOverdraftCounter(status.observed) ||
+    !isCoreOverdraftCounter(status.injected) ||
+    !status.skipped ||
+    typeof status.skipped !== 'object' ||
+    !Object.values(status.skipped).every(isCoreOverdraftCounter) ||
+    !status.outcomes ||
+    typeof status.outcomes !== 'object'
+  ) {
+    return false;
+  }
+  return [
+    status.outcomes.success,
+    status.outcomes['usage-limit'],
+    status.outcomes['hard-stop'],
+    status.outcomes.canceled,
+    status.outcomes['other-failure'],
+  ].every(isCoreOverdraftCounter);
+};
+
+const parseCoreOverdraftStatus = (value: unknown): CPACoreOverdraftStatusResponse | null => {
+  if (!value || typeof value !== 'object') return null;
+  const response = value as Partial<CPACoreOverdraftStatusResponse>;
+  return isCoreOverdraftConfig(response.config) && isCoreOverdraftRuntimeStatus(response.status)
+    ? response as CPACoreOverdraftStatusResponse
+    : null;
+};
+
+// 面板只展示 CPA 进程级实验计数，不能把 success 解释成逐账号或突破额度的确认值。
+export function CoreOverdraftStatusPanel({ value }: { value: unknown }) {
+  const { t } = useTranslation();
+  const parsed = parseCoreOverdraftStatus(value);
+  if (!parsed) {
+    return (
+      <section className={`${styles.coreOverdraftPanel} ${styles.coreOverdraftUnavailable}`}>
+        <div className={styles.coreOverdraftHeader}>
+          <div>
+            <span className={styles.coreOverdraftEyebrow}>CORE</span>
+            <strong>{t('cpa_refill.core_overdraft_title')}</strong>
+          </div>
+          <span className={styles.coreOverdraftState}>{t('cpa_refill.core_overdraft_unavailable')}</span>
+        </div>
+        <p>{t('cpa_refill.core_overdraft_global_hint')}</p>
+      </section>
+    );
+  }
+
+  const { config, status } = parsed;
+  const stateKey = !config.enabled
+    ? 'disabled'
+    : config.mode === 'observe'
+      ? 'observe'
+      : status.injected > 0
+        ? 'inject'
+        : 'waiting';
+  const skipped = Object.entries(status.skipped)
+    .filter(([, count]) => count > 0)
+    .sort((left, right) => right[1] - left[1]);
+  const startedAt = new Date(status['started-at']).toLocaleString();
+  const metrics = [
+    { key: 'evaluated', label: t('cpa_refill.core_overdraft_evaluated'), value: status.evaluated },
+    config.mode === 'inject'
+      ? { key: 'injected', label: t('cpa_refill.core_overdraft_injected'), value: status.injected }
+      : { key: 'observed', label: t('cpa_refill.core_overdraft_observed'), value: status.observed },
+    {
+      key: 'success',
+      label: t(config.mode === 'inject'
+        ? 'cpa_refill.core_overdraft_success_response'
+        : 'cpa_refill.core_overdraft_observe_success_response'),
+      value: status.outcomes.success,
+    },
+    { key: 'usage-limit', label: t('cpa_refill.core_overdraft_usage_limit'), value: status.outcomes['usage-limit'] },
+    { key: 'hard-stop', label: t('cpa_refill.core_overdraft_hard_stop'), value: status.outcomes['hard-stop'] },
+  ];
+
+  return (
+    <section className={styles.coreOverdraftPanel} data-mode={stateKey}>
+      <div className={styles.coreOverdraftHeader}>
+        <div>
+          <span className={styles.coreOverdraftEyebrow}>CORE</span>
+          <strong>{t('cpa_refill.core_overdraft_title')}</strong>
+        </div>
+        <span className={styles.coreOverdraftState}>
+          {t(`cpa_refill.core_overdraft_status_${stateKey}`)}
+        </span>
+      </div>
+      <div className={styles.coreOverdraftConfig}>
+        <span>{t('cpa_refill.core_overdraft_canary', { percent: config['canary-percent'] })}</span>
+        <span>{t('cpa_refill.core_overdraft_strength', { pairs: config['pair-count'] })}</span>
+        <span>
+          {t(config['oauth-only'] ? 'cpa_refill.core_overdraft_oauth_only' : 'cpa_refill.core_overdraft_all_auth')}
+        </span>
+      </div>
+      <div className={styles.coreOverdraftMetrics}>
+        {metrics.map((metric) => (
+          <article key={metric.key} data-metric={metric.key} aria-label={t('cpa_refill.core_overdraft_metric', metric)}>
+            <span>{metric.label}</span>
+            <strong>{new Intl.NumberFormat().format(metric.value)}</strong>
+          </article>
+        ))}
+      </div>
+      <div className={styles.coreOverdraftFooter}>
+        <div>
+          <span>{t('cpa_refill.core_overdraft_started_at')}</span>
+          <strong>{startedAt}</strong>
+        </div>
+        {skipped.length > 0 && (
+          <details className={styles.coreOverdraftSkipped}>
+            <summary>{t('cpa_refill.core_overdraft_skipped')}</summary>
+            <div>
+              {skipped.map(([reason, count]) => (
+                <span key={reason}><code>{reason}</code><b>{new Intl.NumberFormat().format(count)}</b></span>
+              ))}
+            </div>
+          </details>
+        )}
+      </div>
+      <p>{t('cpa_refill.core_overdraft_global_hint')}</p>
+    </section>
+  );
+}
 
 // 生产管理页的经营统计区块与运行状态卡片分层展示，避免金额和队列指标混在一起。
 export function OperatingStatisticsCards({ statistics }: { statistics?: CPARefillStatistics }) {
@@ -619,6 +770,7 @@ export function CPARefillPage() {
   const showNotification = useNotificationStore((state) => state.showNotification);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [overview, setOverview] = useState<CPARefillOverview | null>(null);
+  const [coreOverdraftStatus, setCoreOverdraftStatus] = useState<CPACoreOverdraftStatusResponse | null>(null);
   const [items, setItems] = useState<Array<Record<string, unknown>>>([]);
   const [nextCursor, setNextCursor] = useState('');
   const [hasMore, setHasMore] = useState(false);
@@ -681,22 +833,36 @@ export function CPARefillPage() {
     }
   }, [t]);
 
+  // 核心状态读取失败只降级当前面板，不污染自动补号 Controller 的页面错误状态。
+  const loadCoreOverdraftStatus = useCallback(async () => {
+    try {
+      setCoreOverdraftStatus(await cpaRefillApi.coreOverdraftStatus());
+    } catch {
+      setCoreOverdraftStatus(null);
+    }
+  }, []);
+
   useEffect(() => {
     void loadOverview();
+    void loadCoreOverdraftStatus();
     const timer = window.setInterval(() => {
       if (shouldPollCPARefillOverview(document.visibilityState)) {
         void loadOverview(true);
+        void loadCoreOverdraftStatus();
       }
     }, CPA_REFILL_OVERVIEW_POLL_MS);
     const refreshVisiblePage = () => {
-      if (shouldPollCPARefillOverview(document.visibilityState)) void loadOverview(true);
+      if (shouldPollCPARefillOverview(document.visibilityState)) {
+        void loadOverview(true);
+        void loadCoreOverdraftStatus();
+      }
     };
     document.addEventListener('visibilitychange', refreshVisiblePage);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', refreshVisiblePage);
     };
-  }, [loadOverview]);
+  }, [loadCoreOverdraftStatus, loadOverview]);
 
   const loadList = useCallback(async (
     resource: CPARefillListResource,
@@ -912,7 +1078,9 @@ export function CPARefillPage() {
           <span className={`${styles.statusBadge} ${overview?.status === 'healthy' ? styles.healthy : styles.degraded}`}>
             <span />{overview?.status ? localizedValue('status', overview.status, t) : t('cpa_refill.unavailable')}
           </span>
-          <Button variant="secondary" size="sm" onClick={() => void loadOverview()}>{t('cpa_refill.refresh')}</Button>
+          <Button variant="secondary" size="sm" onClick={() => {
+            void Promise.all([loadOverview(), loadCoreOverdraftStatus()]);
+          }}>{t('cpa_refill.refresh')}</Button>
         </div>
       </header>
 
@@ -953,10 +1121,13 @@ export function CPARefillPage() {
       {activeTab !== 'overview' && activeTab !== 'policy' && (
         <section className={styles.panel}>
           {activeTab === 'accounts' && (
-            <div className={styles.accountMergeNotice} role="note">
-              <strong>{t('cpa_refill.account_merge_title')}</strong>
-              <span>{t('cpa_refill.account_merge_hint')}</span>
-            </div>
+            <>
+              <div className={styles.accountMergeNotice} role="note">
+                <strong>{t('cpa_refill.account_merge_title')}</strong>
+                <span>{t('cpa_refill.account_merge_hint')}</span>
+              </div>
+              <CoreOverdraftStatusPanel value={coreOverdraftStatus} />
+            </>
           )}
           <form className={styles.filters} onSubmit={(event) => { event.preventDefault(); void loadList(activeTab, false); }}>
             <input value={filters.q} onChange={(event) => setActiveFilters({ ...filters, q: event.target.value })} placeholder={t(activeTab === 'accounts' ? 'cpa_refill.search_account_placeholder' : 'cpa_refill.search_placeholder')} />
