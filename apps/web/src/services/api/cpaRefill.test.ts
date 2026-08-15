@@ -12,7 +12,12 @@ vi.mock('./client', () => ({
   apiClient: mocks,
 }));
 
-import { cpaRefillApi, type CPARefillOverview, type CPARefillPolicy } from './cpaRefill';
+import {
+  cpaRefillApi,
+  isCPARefillPolicyStateConflict,
+  type CPARefillOverview,
+  type CPARefillPolicy,
+} from './cpaRefill';
 
 beforeEach(() => {
   mocks.get.mockReset();
@@ -21,6 +26,12 @@ beforeEach(() => {
 });
 
 describe('cpaRefillApi', () => {
+  it('recognizes policy state conflicts without exposing raw backend codes to the page', () => {
+    expect(isCPARefillPolicyStateConflict(new Error('state_conflict'))).toBe(true);
+    expect(isCPARefillPolicyStateConflict(new Error('backend_unavailable'))).toBe(false);
+    expect(isCPARefillPolicyStateConflict('state_conflict')).toBe(false);
+  });
+
   it('keeps the minimum healthy account count in the policy contract', () => {
     const policy: CPARefillPolicy = {
       desired_mode: 'active',

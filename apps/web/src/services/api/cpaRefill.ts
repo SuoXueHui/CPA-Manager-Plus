@@ -142,6 +142,10 @@ export interface CPARefillPolicy {
   policy_version: number;
 }
 
+// Controller 使用稳定错误码表示策略版本变化或 Active 门禁未就绪；页面据此刷新权威状态并显示中文说明。
+export const isCPARefillPolicyStateConflict = (error: unknown) =>
+  error instanceof Error && error.message === 'state_conflict';
+
 const compactQuery = (query: CPARefillListQuery) =>
   Object.fromEntries(
     Object.entries(query).filter(([, value]) => value !== undefined && value !== null && value !== '')

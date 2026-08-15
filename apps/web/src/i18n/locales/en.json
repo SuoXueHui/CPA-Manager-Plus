@@ -263,6 +263,7 @@
     "action_accepted": "Action accepted",
     "action_failed": "Action failed",
     "policy_saved": "Policy saved",
+    "policy_state_conflict": "The state changed or activation prerequisites are not ready. The latest policy was refreshed; verify usage and account snapshots before saving again.",
     "account_detail": "Account Details",
     "account_merge_title": "Account grouping",
     "account_merge_hint": "Matching complete emails are grouped. Local estimates sum every credential request using the model price active when each event was recorded; they are not averaged and are not upstream bills. 5h/7d are Controller-local rolling statistics.",

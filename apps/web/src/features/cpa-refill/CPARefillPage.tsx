@@ -8,6 +8,7 @@ import type { SelectOption } from '@/components/ui/Select';
 import { QuotaInfoTooltip } from '@/components/quota';
 import {
   cpaRefillApi,
+  isCPARefillPolicyStateConflict,
   type CPARefillAction,
   type CPARefillAccountListItem,
   type CPARefillCredentialSummary,
@@ -854,7 +855,14 @@ export function CPARefillPage() {
       showNotification(t('cpa_refill.policy_saved'), 'success');
       await loadOverview(true);
     } catch (saveError) {
-      showNotification(saveError instanceof Error ? saveError.message : t('cpa_refill.action_failed'), 'error');
+      if (isCPARefillPolicyStateConflict(saveError)) {
+        // 冲突可能来自并发 policy version 或 Active 新鲜度门禁；两种情况都应立即刷新权威状态，
+        // 避免用户继续拿旧版本重复提交，并且不要把后端英文错误码直接暴露到中文页面。
+        await Promise.all([loadOverview(true), loadPolicy()]);
+        showNotification(t('cpa_refill.policy_state_conflict'), 'error');
+      } else {
+        showNotification(saveError instanceof Error ? saveError.message : t('cpa_refill.action_failed'), 'error');
+      }
     } finally {
       setPolicyLoading(false);
     }

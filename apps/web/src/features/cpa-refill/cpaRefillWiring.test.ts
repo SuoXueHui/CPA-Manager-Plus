@@ -118,6 +118,16 @@ describe('CPA refill console wiring', () => {
     }
   });
 
+  it('refreshes authoritative state and localizes policy conflicts', () => {
+    expect(pageSource).toContain('isCPARefillPolicyStateConflict(saveError)');
+    expect(pageSource).toContain('await Promise.all([loadOverview(true), loadPolicy()])');
+    expect(pageSource).toContain("t('cpa_refill.policy_state_conflict')");
+    expect(zhCN.cpa_refill.policy_state_conflict).not.toContain('state_conflict');
+    for (const locale of [en, ru, zhCN, zhTW]) {
+      expect(locale.cpa_refill.policy_state_conflict).toBeTruthy();
+    }
+  });
+
   it('renders account details with the shared modal drawer and resilient long-field layout', () => {
     expect(pageSource).toContain("import { Drawer } from '@/components/ui/Drawer'");
     expect(pageSource).toContain('<Drawer');
