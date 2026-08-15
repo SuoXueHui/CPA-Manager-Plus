@@ -71,6 +71,19 @@ export interface CPACoreOverdraftOutcomes {
   'other-failure': number;
 }
 
+export interface CPACoreOverdraftActionStatus {
+  requests: number;
+  outcomes: CPACoreOverdraftOutcomes;
+}
+
+export interface CPACoreOverdraftAccountStatus {
+  'auth-id': string;
+  'first-seen-at': string;
+  'last-seen-at': string;
+  observed: CPACoreOverdraftActionStatus;
+  injected: CPACoreOverdraftActionStatus;
+}
+
 export interface CPACoreOverdraftRuntimeStatus {
   'started-at': string;
   evaluated: number;
@@ -78,6 +91,9 @@ export interface CPACoreOverdraftRuntimeStatus {
   observed: number;
   injected: number;
   outcomes: CPACoreOverdraftOutcomes;
+  // 新版 CPA 可选返回最近账号运行态；旧核心缺字段时全局面板仍保持兼容。
+  'account-retention-seconds'?: number;
+  accounts?: CPACoreOverdraftAccountStatus[];
 }
 
 export interface CPACoreOverdraftStatusResponse {
@@ -206,11 +222,20 @@ export const cpaRefillApi = {
     apiClient.get<CPARefillOverview>(`${BASE_PATH}/overview`, { timeout: READ_TIMEOUT_MS }),
 
   // 复用 Manager 的通用管理代理读取 CPA 核心状态；该请求不依赖自动补号 Controller。
-  coreOverdraftStatus: () =>
-    apiClient.get<CPACoreOverdraftStatusResponse>('/codex-weekly-overdraft', {
+  coreOverdraftStatus: (authIDs: string[] = []) => {
+    const normalizedAuthIDs = Array.from(new Set(authIDs.map((authID) => authID.trim()).filter(Boolean)));
+    return apiClient.get<CPACoreOverdraftStatusResponse>('/codex-weekly-overdraft', {
+      ...(normalizedAuthIDs.length > 0
+        ? {
+            params: { 'auth-id': normalizedAuthIDs },
+            // Axios 1.x 的 indexes=null 会序列化为重复的 `auth-id=value`，与 CPA QueryArray 契约一致。
+            paramsSerializer: { indexes: null as null },
+          }
+        : {}),
       timeout: READ_TIMEOUT_MS,
       validateStatus: acceptCoreOverdraftUnauthorized,
-    }),
+    });
+  },
 
   list: <TItem extends Record<string, unknown> = Record<string, unknown>>(
     resource: CPARefillListResource,

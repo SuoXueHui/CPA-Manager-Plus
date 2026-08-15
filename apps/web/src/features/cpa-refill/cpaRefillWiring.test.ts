@@ -74,6 +74,26 @@ describe('CPA refill console wiring', () => {
     }
   });
 
+  it('joins the six-hour core snapshot to visible account credentials without adding a polling timer', () => {
+    expect(pageSource).toContain('CoreOverdraftAccountStrip');
+    expect(pageSource).toContain('account={item}');
+    expect(pageSource).toContain('status={coreOverdraftStatus?.status}');
+    expect(pageSource).toContain('accountAuthIDsRef');
+    expect(pageSource).toContain('cpaRefillApi.coreOverdraftStatus(accountAuthIDsRef.current)');
+    expect(pageSource).toContain("'account-retention-seconds'");
+    expect(pageSource).toContain("'auth-id'");
+    expect(pageSource.match(/window\.setInterval/g)).toHaveLength(2);
+    for (const locale of [en, ru, zhCN, zhTW]) {
+      expect(locale.cpa_refill.core_overdraft_account_label).toBeTruthy();
+      expect(locale.cpa_refill.core_overdraft_account_no_activity).toBeTruthy();
+      expect(locale.cpa_refill.core_overdraft_account_injected).toBeTruthy();
+      expect(locale.cpa_refill.core_overdraft_account_success).toBeTruthy();
+      expect(locale.cpa_refill.core_overdraft_account_usage_limit).toBeTruthy();
+      expect(locale.cpa_refill.core_overdraft_account_hard_stop).toBeTruthy();
+      expect(locale.cpa_refill.core_overdraft_account_minutes_ago).toBeTruthy();
+    }
+  });
+
   it('renders Codex account identity, bounded usage and lifecycle fields', () => {
     expect(pageSource).toContain("accounts: ['email', 'status', 'usage_windows', 'imported_at', 'expires_at', 'last_request_at']");
     expect(pageSource).not.toContain("accounts: ['email', 'status', 'total_tokens', 'cost_micro_usd'");

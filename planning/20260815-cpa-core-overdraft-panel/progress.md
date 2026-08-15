@@ -23,3 +23,11 @@
 - 独立代码审查提出 4 个 Important 和 1 个 Minor：内嵌 bundle 落后、success 被当前 mode 误归因、进程计数未完整显示、可选端点 401 触发全局退出，以及并发刷新旧结果覆盖竞态。
 - 已按 TDD 修复全部审查项：成功计数改为模式中立文案，始终展示 observed/injected 和全部 outcomes，401 仅降级面板，状态请求 only-latest-wins，并增加内嵌 bundle 关键标记测试。
 - 审查修复后的新鲜验证通过：前端 `145 files / 1426 tests`、type-check、lint、production build；Manager Server `go test ./...`、`go test -race ./...`、`go vet ./...`、`cmd/cpa-manager-plus` build；`git diff --check` 与源码/内嵌 bundle 标记一致性检查。
+- 用户进一步确认一期需要账号级破限信息，但账号有效期短，无需持久化；方案调整为 CPA 内存保留 6 小时、Manager 当前页凭证关联。
+- 新增前端失败测试，覆盖合并凭证汇总、observe/inject 语义隔离、无活动/旧 CPA 降级、坏 DTO、过滤查询、四语种与内嵌 bundle 门禁。
+- 实现账号 DTO、严格可选解析、`cpa_auth_id` 关联、合并账号汇总、当前页 auth ID 过滤和紧凑 `CORE 6h` 条带。
+- 账号功能定向验证通过：4 files / 31 tests；type-check 通过。内嵌 bundle 仍待 production build 刷新。
+- 补充动作分组回归，账号条带现在同时保留 observe/inject 各自的成功和失败结果，避免热切模式后误归因。
+- 新鲜定向验证通过：4 files / 31 tests。
+- 已刷新并逐字节同步 Manager 内嵌 `management.html`，新账号指标和四语言文案标记均存在。
+- 新鲜全量验证通过：前端 `146 files / 1431 tests`、type-check、lint；Manager Server `go test ./...`、`go test -race ./...`、`go vet ./...`、`cmd/cpa-manager-plus` build；`cmp`、`git diff --check`。

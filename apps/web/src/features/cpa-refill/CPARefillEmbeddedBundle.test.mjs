@@ -25,5 +25,8 @@ describe('CPA refill embedded management bundle', () => {
     expect(embeddedPanel).toContain('core_overdraft_process_success');
     expect(embeddedPanel).toContain('core_overdraft_canceled');
     expect(embeddedPanel).toContain('core_overdraft_other_failure');
+    expect(embeddedPanel).toContain('core_overdraft_account_no_activity');
+    expect(embeddedPanel).toContain('core_overdraft_account_minutes_ago');
+    expect(embeddedPanel).toContain('account-retention-seconds');
   });
 });

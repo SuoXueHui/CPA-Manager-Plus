@@ -13,3 +13,6 @@
 - Manager 的通用代理会把未知 management 一级路径视为插件路由；`codex-weekly-overdraft` 是 CPA 核心内置端点，已加入内置路径集合，避免错误走插件来源改写和调用方认证兼容分支。
 - 该状态端点属于可选观测；上游 CPA Management Key 失效导致 401 时，请求级 `validateStatus` 会将其交给严格 DTO 降级，不触发 CPAMP 全局 `unauthorized` 退出。
 - 轮询、页面重新可见与手工刷新可能并发；面板使用 request ID 仅接受最新结果，避免旧失败覆盖新成功状态。
+- 新版 CPA 状态包含可选 `account-retention-seconds` 与 `accounts`；每条账号记录按 observe/inject 分别给出请求数和终态结果。
+- Controller 的单账号行直接包含 `cpa_auth_id`，合并行在 `credentials[].cpa_auth_id` 保留每份凭证，因此 Manager 无需改 Controller 或数据库即可关联。
+- 账号条带复用页面共享分钟时钟与 15 秒核心状态轮询，不增加每行 timer；API 只请求当前可见账号的去重 auth ID。
