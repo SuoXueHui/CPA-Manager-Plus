@@ -17,4 +17,13 @@ describe('CPA refill embedded management bundle', () => {
     expect(embeddedPanel).toContain(zhCN.cpa_refill.policy_saved_pending);
     expect(embeddedPanel).toContain(zhCN.cpa_refill.policy_idempotency_conflict);
   });
+
+  it('ships the current core overdraft status panel instead of a stale bundle', () => {
+    const embeddedPanel = readFileSync(embeddedPanelPath, 'utf8');
+    expect(embeddedPanel).toContain(zhCN.cpa_refill.core_overdraft_title);
+    expect(embeddedPanel).toContain('core_overdraft_observed');
+    expect(embeddedPanel).toContain('core_overdraft_process_success');
+    expect(embeddedPanel).toContain('core_overdraft_canceled');
+    expect(embeddedPanel).toContain('core_overdraft_other_failure');
+  });
 });

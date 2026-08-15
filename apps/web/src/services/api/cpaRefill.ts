@@ -4,6 +4,9 @@ const READ_TIMEOUT_MS = 5_000;
 const WRITE_TIMEOUT_MS = 10_000;
 // apiClient 的 baseURL 已包含 /v0/management，这里只保留 Manager 白名单的相对路径。
 const BASE_PATH = '/cpa-refill';
+// 核心透支面板是可选观测：上游 CPA key 失效时只降级面板，不能触发 CPAMP 全局登出。
+const acceptCoreOverdraftUnauthorized = (status: number) =>
+  (status >= 200 && status < 300) || status === 401;
 
 export type CPARefillListResource =
   | 'accounts'
@@ -47,6 +50,39 @@ export interface CPARefillOverview {
   };
   dependencies?: Array<Record<string, unknown>>;
   generated_at?: string;
+}
+
+// CPA 核心透支实验仅暴露进程级聚合计数，不包含账号、请求正文或认证信息。
+export interface CPACoreOverdraftConfig {
+  enabled: boolean;
+  mode: 'observe' | 'inject';
+  'canary-percent': number;
+  'pair-count': 1 | 2 | 4;
+  'tail-policy': 'user-only' | 'user-and-tool-output';
+  'oauth-only': boolean;
+  'max-body-bytes': number;
+}
+
+export interface CPACoreOverdraftOutcomes {
+  success: number;
+  'usage-limit': number;
+  'hard-stop': number;
+  canceled: number;
+  'other-failure': number;
+}
+
+export interface CPACoreOverdraftRuntimeStatus {
+  'started-at': string;
+  evaluated: number;
+  skipped: Record<string, number>;
+  observed: number;
+  injected: number;
+  outcomes: CPACoreOverdraftOutcomes;
+}
+
+export interface CPACoreOverdraftStatusResponse {
+  config: CPACoreOverdraftConfig;
+  status: CPACoreOverdraftRuntimeStatus;
 }
 
 // Controller 基于账号小时桶聚合的本地窗口；金额单位保持 micro USD，避免前后端浮点误差。
@@ -168,6 +204,13 @@ const compactQuery = (query: CPARefillListQuery) =>
 export const cpaRefillApi = {
   overview: () =>
     apiClient.get<CPARefillOverview>(`${BASE_PATH}/overview`, { timeout: READ_TIMEOUT_MS }),
+
+  // 复用 Manager 的通用管理代理读取 CPA 核心状态；该请求不依赖自动补号 Controller。
+  coreOverdraftStatus: () =>
+    apiClient.get<CPACoreOverdraftStatusResponse>('/codex-weekly-overdraft', {
+      timeout: READ_TIMEOUT_MS,
+      validateStatus: acceptCoreOverdraftUnauthorized,
+    }),
 
   list: <TItem extends Record<string, unknown> = Record<string, unknown>>(
     resource: CPARefillListResource,
