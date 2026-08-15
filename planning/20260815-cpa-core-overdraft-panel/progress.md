@@ -40,3 +40,14 @@
 - 已刷新并逐字节同步 Manager 内嵌 `management.html`，新账号指标和四语言文案标记均存在。
 - 新鲜全量验证通过：前端 `146 files / 1431 tests`、type-check、lint；Manager Server `go test ./...`、`go test -race ./...`、`go vet ./...`、`cmd/cpa-manager-plus` build；`cmp`、`git diff --check`。
 - 账号扩展已合并到 Manager `master@e00e79b6`；合并后前端测试 `146 files / 1431 tests`、type-check、lint 与 Manager Server full test/race/vet 通过。
+- 合并后重新构建的内嵌 bundle 已提交为 Manager `master@c5a33a05` 并推送 fork `master`；恢复会话时工作树干净。
+- 新鲜线上只读基线确认 Manager 仍运行旧全局面板镜像 `cpa-manager-plus:core-overdraft-ef4bbd92-amd64`，CPA 仍运行 `cli-proxy-api:codex-weekly-overdraft-6e8229af-cgo-amd64`；两者 restart=0、OOM=false，账号级 `CORE 6h` 尚待发布。
+- 恢复会话后的新鲜门禁中，前端 `146 files / 1431 tests`、type-check、lint 已通过；production build 成功，但 `dist/index.html` 与已提交 `management.html` 字节不一致，已进入根因调查，尚未把该构建用于发布。
+- 根因已确认：Vite 在构建时用 `git describe` 内嵌版本号；`c5a33a05` 本身是同步 bundle 的提交，所以已提交页面显示其父提交 `e00e79b6`，当前构建显示 `c5a33a05`。两份文件长度相同，归一化唯一版本字符串后逐字节完全一致，连续两次当前构建 SHA256 也一致。
+- 找到中断会话已创建的生产发布目录与 Manager amd64 二进制，但其中 `SHA256SUMS` 错误保留了构建机 `/tmp` 绝对路径；发布前将直接核对实际文件并重写相对路径清单，不把当前 manifest 绿灯当作有效证据。
+- 已用最终 `c5a33a05` bundle 重建 Manager amd64 二进制并通过隔离候选；CPA 新镜像也通过 6 小时账号契约和插件加载候选。正式切换时 CPA 成功上线，Manager 验证脚本在页面抓取前触发自动回滚，旧 Manager 已恢复 healthy；正在确认 Docker health 状态与 HTTP 就绪的时序竞态。
+- 隔离时序复现确认根因：新 Manager 在第 1 秒已返回 HTTP 200，但 Compose 等价 healthcheck 到第 10 秒才从 `starting` 变为 `healthy`；首次脚本把“HTTP 已就绪但 Docker health 尚未首轮成功”误判为发布失败。第二次切换将同时等待 HTTP 200 与 Docker healthy。
+- 第二次只切换 Manager 并同时等待 HTTP 200 与 Docker healthy，约第 10 秒完成；新镜像 `cpa-manager-plus:core-overdraft-accounts-c5a33a05-amd64` 正式运行，healthy、restart=0、OOM=false。
+- 最终线上验收：CPA/Manager 账号统计接口、Manager 页面和 `/health` 均 200；CLIProxyAPI root=200、未认证 models=401；作者插件 v0.3.1332 loaded/registered；近 15 分钟未见选定 severe 日志；发布校验和与回滚脚本有效。
+- 真实 Chrome 账号页显示全局 `evaluated=22 / injected=2 / success=2`，50 个可见 `CORE 6h` 条带中有 2 个账号显示“注入 1 / 成功 1”，浏览器控制台无 warning/error。Controller 容器 ID 与镜像未变化。
+- 已更新 Manager `AGENTS.md` 的账号关联和发布 health 等待规则，并同步 Obsidian 当前阶段、接口契约、任务看板、问题排查与变更记录。

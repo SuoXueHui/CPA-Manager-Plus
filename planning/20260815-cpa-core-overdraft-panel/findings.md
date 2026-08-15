@@ -18,3 +18,7 @@
 - 新版 CPA 状态包含可选 `account-retention-seconds` 与 `accounts`；每条账号记录按 observe/inject 分别给出请求数和终态结果。
 - Controller 的单账号行直接包含 `cpa_auth_id`，合并行在 `credentials[].cpa_auth_id` 保留每份凭证，因此 Manager 无需改 Controller 或数据库即可关联。
 - 账号条带复用页面共享分钟时钟与 15 秒核心状态轮询，不增加每行 timer；API 只请求当前可见账号的去重 auth ID。
+- 线上当前 Manager/CPA 镜像仍是账号扩展之前的 `ef4bbd92`/`6e8229af` 版本；Controller 无需发布，本次只需可回滚地替换 CPA 与 Manager 两个容器镜像。
+- Manager 前端版本由 `apps/web/vite.config.ts` 的 `git describe` 在构建时写入。同步 bundle 后再提交会天然造成已提交页面落后一条“仅同步 bundle”的提交；本次新鲜 dist 与内嵌页面除 `v1.11.12-98-ge00e79b6` / `v1.11.12-99-gc5a33a05` 外逐字节一致。发布产物应使用 `c5a33a05` 的新鲜 dist 构建二进制，并单独保留归一化一致性证据。
+- Manager HTTP `/health` 会在进程启动约 1 秒后可用，但 Docker healthcheck 默认 10 秒间隔，首次 `healthy` 约在第 10 秒出现；发布门禁必须等待两者同时成立，不能在首个 HTTP 200 后立即断言 Docker health 已完成。
+- 最终页面关联已在真实数据上成立：接口返回 2 个注入账号，账号列表恰有 2 个 `CORE 6h` 条带显示各自 `注入 1 / 成功 1`；其余当前页账号显示无核心记录，不会伪装成零成功或全账号生效。

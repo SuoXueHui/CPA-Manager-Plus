@@ -29,7 +29,9 @@ docker compose -f docker-compose.manager.yml build
 - Prefer derived monitoring data for covered ranges while retaining safe raw-data fallbacks.
 - Do not log CPA Management Keys, CPAMP Admin Keys, auth files or request credentials.
 - Keep frontend and embedded `apps/manager-server/internal/httpapi/web/management.html` assets synchronized through the existing build flow.
+- The CPA core overdraft account strip joins CPA `auth-id` to Controller `cpa_auth_id`, aggregates grouped credentials, and treats account fields as an optional six-hour in-memory extension. Preserve observe/inject separation and fail closed without breaking the account list.
 - Before publishing a Manager image, verify the frontend build output, embedded `management.html`, and the live served page all contain the intended change; source or `dist` checks alone are insufficient.
+- During Manager rollout, wait for both HTTP `/health` 200 and Docker health `healthy`; the HTTP handler can be ready roughly one healthcheck interval before Docker reports healthy.
 - Release images must build `apps/manager-server/cmd/cpa-manager-plus`; do not substitute the similarly named CLIProxyAPIPlus server binary, which requires a different runtime configuration.
 - Keep changes small and follow the language already used in the edited file.
 

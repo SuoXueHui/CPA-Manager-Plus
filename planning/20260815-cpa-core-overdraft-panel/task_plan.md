@@ -19,8 +19,8 @@
 4. [completed] 执行定向测试、全量测试、类型检查、lint、构建和嵌入资产验证。
 5. [completed] 修复独立代码审查提出的全局面板语义、嵌入资产、401 降级和并发刷新问题。
 6. [completed] TDD：接入 CPA 最近 6 小时账号统计，完成凭证关联、合并账号汇总和紧凑条带。
-7. [in_progress] 执行全量验证、合并 CPA/Manager `master`、构建发布并做线上只读验证。
-8. [pending] 检查 AGENTS.md 与项目知识文档是否需要同步。
+7. [completed] 执行全量验证、合并 CPA/Manager `master`、构建发布并做线上只读验证。
+8. [completed] 检查 AGENTS.md 与项目知识文档是否需要同步。
 
 ## 风险与边界
 - 指标是 CPA 进程启动以来的全局原子计数，进程重启会清零。
@@ -47,3 +47,9 @@
 | 账号条带源码完成后先跑全量测试，内嵌 bundle 门禁按预期拦截陈旧 `management.html` | 1 | 执行 production build 后按现有发布流程将 `apps/web/dist/index.html` 同步到内嵌文件，`cmp` 和 bundle 回归均通过。 |
 | 账号扩展分支合并回 Manager `master` 时，与先前全局面板发布记录在三个 planning 文件中冲突 | 1 | 仅合并文档历史：保留先前线上验证证据，并追加本次 6 小时账号统计的方案、验证和发布阶段。 |
 | Manager `master` 合并后在主工作树重新 production build，新 `dist/index.html` 与分支中的内嵌产物字节不同 | 1 | 以合并后 `master` 的新鲜构建为权威产物，再次同步 `management.html` 并重跑内嵌门禁。 |
+| 恢复会话后的新鲜 production build 再次与已提交内嵌页面出现字节差异 | 1 | 暂不覆盖产物；先比较两次构建和已提交 bundle 的实际差异，确认是否存在非确定性或源码/环境漂移后再决定处理方式。 |
+| 本机 `shasum -a 256` 因无效 `C.UTF-8` locale 直接 panic | 1 | 改用 Python `hashlib.sha256` 计算摘要，不调整全局 locale，也不重复使用失败命令。 |
+| 版本来源检索命令中的未匹配 `vite.config.*` 被 zsh 当作错误 | 1 | 移除裸 glob，改用 `rg` 的文件类型过滤和明确目录继续只读调查。 |
+| 既有发布目录的 `SHA256SUMS` 仍引用构建机 `/tmp` 绝对路径，远端 `sha256sum -c` 无法读取 | 1 | 不信任该校验文件；直接对发布目录内实际 tarball/二进制计算摘要并与记录值逐项比较，发布前重写为相对路径校验清单。 |
+| 首次正式切换新 Manager 后验证脚本立即回滚；HTTP 探针已出现连接重置，且尚未进入页面抓取阶段 | 1 | 自动回滚成功，旧 Manager 已恢复 healthy。当前假设是 HTTP 200 早于 Compose Docker health 从 `starting` 变为 `healthy`；先用带同等 healthcheck 的隔离候选记录状态时序，再修正发布等待条件。 |
+| 一次跨多文档知识同步补丁因 CLIProxyAPI 变更记录的锚点文字与实际文件不完全一致而整体未应用 | 1 | 不重复大补丁；先读取各文件准确尾部，再按项目与文档拆成小型追加/局部修改。 |
